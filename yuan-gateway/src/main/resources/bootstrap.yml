@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: cxm-gateway
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      discovery:
+        # 服务注册中心地址
+        server-addr: 127.0.0.1:8848
+      config:
+        # 配置中心地址
+        server-addr: 127.0.0.1:8848
+        file-extension: yml
+        shared-configs:
+          - data-id: cxm-gateway-blacklist.yml
+            refresh: true
+    sentinel:
+      # 取消控制台懒加载
+      eager: true
+      transport:
+        # 控制台地址
+        dashboard: 127.0.0.1:8080
+      scg:
+        fallback:
+          mode: custom
+      datasource:
+        flow-rule:
+          nacos:
+            server-addr: 127.0.0.1:8848
+            dataId: cxm-gateway-sentinel-flow
+            groupId: DEFAULT_GROUP
+            data-type: json
+            rule-type: flow
+        degrade-rule:
+          nacos:
+            server-addr: 127.0.0.1:8848
+            dataId: cxm-gateway-sentinel-degrade
+            groupId: DEFAULT_GROUP
+            data-type: json
+            rule-type: degrade
+
+
+# flow：限流规则
+# degrade：熔断规则
+# system：系统保护规则
+# authority：授权规则
+# param-flow：热点参数规则
+# gw-flow：网关限流规则（需确认是否支持）
+
+

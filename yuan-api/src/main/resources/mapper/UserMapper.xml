@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yuan.api.mapper.UserMapper">
+    <resultMap id="BaseResultMap" type="com.yupi.yuapicommon.model.entity.User">
+        <id property="id" column="id" jdbcType="BIGINT"/>
+        <result property="userName" column="userName" jdbcType="VARCHAR"/>
+        <result property="userAvatar" column="userAvatar" jdbcType="VARCHAR"/>
+        <result property="accessKey" column="accessKey" jdbcType="VARCHAR"/>
+        <result property="secretKey" column="secretKey" jdbcType="VARCHAR"/>
+        <result property="loginFailCount" column="loginFailCount" jdbcType="INTEGER"/>
+        <result property="points" column="points" jdbcType="INTEGER"/>
+        <result property="userRole" column="userRole" jdbcType="VARCHAR"/>
+        <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
+        <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
+        <result property="lastLoginTime" column="lastLoginTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,accessKey,secretKey
+        userName,userAvatar,
+        userRole,createTime,updateTime,loginFailCount,lastLoginTime,points
+    </sql>
+
+    <update id="deductPoints">
+        update user set points = points - #{requiredPoints} where  id = #{userId}
+    </update>
+
+    <select id="selectPoints" resultType="java.lang.Integer">
+        select points from user where id = #{userId}
+    </select>
+
+    <update id="updateLoggingStatus">
+        UPDATE user
+        SET loggingEnabled = ${loggingEnabled}
+        WHERE id = #{userId}
+    </update>
+</mapper>

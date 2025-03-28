@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yuan.api.mapper.FeedbackMapper">
+
+    <resultMap id="BaseResultMap" type="com.yuan.api.model.entity.Feedback">
+        <id column="id" property="id" />
+        <result column="userAccount" property="userAccount" />
+        <result column="contact" property="contact" />
+        <result column="feedbackType" property="feedbackType" />
+        <result column="feedbackContent" property="feedbackContent" />
+        <result column="status" property="status" javaType="com.yuan.api.model.enums.FeedbackStatusEnum" typeHandler="com.yuan.api.config.FeedbackStatusEnumTypeHandler"/>
+        <result column="createTime" property="createTime" />
+    </resultMap>
+
+
+
+</mapper>

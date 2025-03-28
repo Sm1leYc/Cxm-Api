@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yuan.api.mapper.InterfaceInfoMapper">
+
+    <resultMap id="BaseResultMap" type="com.yupi.yuapicommon.model.entity.InterfaceInfo">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="name" column="name" jdbcType="VARCHAR"/>
+            <result property="description" column="description" jdbcType="VARCHAR"/>
+            <result property="url" column="url" jdbcType="VARCHAR"/>
+            <result property="request" column="request" jdbcType="VARCHAR"/>
+            <result property="client" column="client" jdbcType="VARCHAR"/>
+            <result property="clientMethod" column="clientMethod" jdbcType="VARCHAR"/>
+            <result property="invokeCount" column="invokeCount" jdbcType="INTEGER"/>
+            <result property="requiredPoints" column="requiredPoints" jdbcType="INTEGER"/>
+            <result property="requestHeader" column="requestHeader" jdbcType="VARCHAR"/>
+            <result property="responseHeader" column="responseHeader" jdbcType="VARCHAR"/>
+        <result property="remarkContent" column="remarkContent" jdbcType="VARCHAR"/>
+        <result property="remarkType" column="remarkType" jdbcType="VARCHAR"/>
+        <result property="responseExample" column="responseExample" jdbcType="VARCHAR"/>
+            <result property="status" column="status" jdbcType="INTEGER"/>
+            <result property="method" column="method" jdbcType="VARCHAR"/>
+        <result property="documentationUrl" column="documentationUrl" jdbcType="VARCHAR"/>
+            <result property="type" column="type" jdbcType="VARCHAR"/>
+        <result property="webserviceUrl" column="webserviceUrl" jdbcType="VARCHAR"/>
+        <result property="webserviceMethod" column="webserviceMethod" jdbcType="VARCHAR"/>
+            <result property="userId" column="userId" jdbcType="BIGINT"/>
+            <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
+            <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
+            <result property="isDelete" column="isDelete" jdbcType="TINYINT"/>
+        <result property="cacheEnabled" column="cacheEnabled" jdbcType="TINYINT"/>
+        <result property="cacheDuration" column="cacheDuration" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,name,description,request,
+            remarkContent, remarkType,
+        url,requestHeader,
+        responseHeader,status,method,
+        userId,createTime,updateTime,
+        isDelete
+    </sql>
+
+    <update id="addInvokeCounts">
+        UPDATE interface_info SET
+            invokeCount = invokeCount + 1
+        where id = #{interfaceId}
+    </update>
+</mapper>

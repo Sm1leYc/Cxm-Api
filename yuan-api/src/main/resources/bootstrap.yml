@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: cxm-backend
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      discovery:
+        # 服务注册中心地址
+        server-addr: 127.0.0.1:8848
+      config:
+        # 配置中心地址
+        server-addr: 127.0.0.1:8848
+        file-extension: yml
+        shared-configs:
+          - data-id: shared-test.yml
+            refresh: true
+
+
