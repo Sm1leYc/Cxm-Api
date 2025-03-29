@@ -2,7 +2,7 @@ package com.yuan.api.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.yuan.api.common.ResultUtils;
+import com.yuan.api.utils.ResultUtils;
 import com.yuan.api.common.BaseResponse;
 import com.yuan.api.model.dto.apicallhistory.ApiCallHistoryQuery;
 import com.yuan.api.model.dto.apicallhistory.LoggingStatusRequest;

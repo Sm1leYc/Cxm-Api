@@ -1,17 +1,13 @@
 package com.yuan.api.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.yuan.api.annotation.AuthCheck;
 import com.yuan.api.common.BaseResponse;
-import com.yuan.api.common.ResultUtils;
+import com.yuan.api.utils.ResultUtils;
 import com.yuan.api.constant.UserConstant;
-import com.yuan.api.mapper.ApiCallHistoryMapper;
 import com.yuan.api.model.entity.ApiCallHistory;
-import com.yuan.api.model.vo.ApiCallHistoryVO;
 import com.yuan.api.model.vo.ApiCallStatisticsVO;
 import com.yuan.api.model.vo.InterfacePerformanceInfoVO;
 import com.yuan.api.service.ApiCallHistoryService;
-import com.yuan.api.service.InterfaceInfoService;
 import com.yuan.api.utils.RedisUtils;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -19,9 +15,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.annotation.Resource;
-import javax.servlet.http.HttpServletRequest;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;

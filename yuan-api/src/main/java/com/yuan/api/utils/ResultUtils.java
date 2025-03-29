@@ -1,5 +1,6 @@
-package com.yuan.api.common;
+package com.yuan.api.utils;
 
+import com.yuan.api.common.BaseResponse;
 import com.yupi.yuapicommon.common.ErrorCode;
 
 /**

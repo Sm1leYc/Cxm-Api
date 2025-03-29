@@ -12,7 +12,9 @@ import java.util.stream.Collectors;
 public enum InterfaceInfoStatusEnum {
 
     OFFLINE("关闭", 0),
-    ONLINE("上线", 1);
+    ONLINE("上线", 1),
+    TEST("测试", 2),
+    ;
 
     private final String text;
 
@@ -23,20 +25,11 @@ public enum InterfaceInfoStatusEnum {
         this.value = value;
     }
 
-    /**
-     * 获取值列表
-     *
-     * @return
-     */
-    public static List<Integer> getValues() {
-        return Arrays.stream(values()).map(item -> item.value).collect(Collectors.toList());
+    public String getText() {
+        return text;
     }
 
     public int getValue() {
         return value;
-    }
-
-    public String getText() {
-        return text;
     }
 }

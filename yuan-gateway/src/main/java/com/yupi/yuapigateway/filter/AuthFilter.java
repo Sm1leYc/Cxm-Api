@@ -5,11 +5,12 @@ import com.yupi.yuapicommon.common.ErrorCode;
 import com.yupi.yuapicommon.exception.BusinessException;
 import com.yupi.yuapicommon.model.entity.InterfaceInfo;
 import com.yupi.yuapicommon.model.entity.User;
+import com.yupi.yuapicommon.model.enums.InterfaceInfoStatusEnum;
 import com.yupi.yuapicommon.service.InnerInterfaceInfoService;
 import com.yupi.yuapicommon.service.InnerUserInterfaceInfoService;
 import com.yupi.yuapicommon.service.InnerUserService;
 import com.yupi.yuapicommon.utils.NetUtils;
-import com.yupi.yuapigateway.common.RedisUtils;
+import com.yupi.yuapigateway.utils.RedisUtils;
 import com.yupi.yuapigateway.config.IpBlacklistConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -20,7 +21,6 @@ import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.OrderedGatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
-import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
@@ -125,6 +125,12 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
 
             if (interfaceInfo == null || interfaceInfo.getStatus() == 0) {
                 throw new BusinessException(ErrorCode.ERROR_SERVICE_UNAVAILABLE);
+            }
+
+            // 普通用户只能调用上线接口
+            if (interfaceInfo.getStatus() != InterfaceInfoStatusEnum.ONLINE.getValue()
+                    && "user".equals(invokeUser.getUserRole())){
+                throw new BusinessException(ErrorCode.ERROR_FORBIDDEN);
             }
 
             // 是否使用缓存结果

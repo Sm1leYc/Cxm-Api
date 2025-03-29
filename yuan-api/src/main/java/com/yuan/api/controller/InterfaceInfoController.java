@@ -19,18 +19,17 @@ import com.yuan.api.common.BaseResponse;
 import com.yupi.yuapicommon.common.ErrorCode;
 import com.yupi.yuapicommon.model.entity.InterfaceInfo;
 import com.yupi.yuapicommon.model.entity.User;
-import com.yuan.api.model.enums.InterfaceInfoStatusEnum;
 import com.yuan.api.service.InterfaceInfoService;
 import com.yuan.api.service.UserService;
+import com.yupi.yuapicommon.model.enums.InterfaceInfoStatusEnum;
 import com.yupi.yuapicommon.model.vo.InterfaceInfoVO;
 import com.yupi.yuapicommon.service.InnerRedisService;
-import com.yuan.api.common.ResultUtils;
+import com.yuan.api.utils.ResultUtils;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.beans.BeanUtils;
-import org.springframework.util.StopWatch;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -190,12 +189,15 @@ public class InterfaceInfoController {
         }
         InterfaceInfo interfaceInfo = interfaceInfoService.getById(id);
 
+        if (interfaceInfo == null){
+            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+        }
+
         User loginUser = userService.getLoginUserPermitNull(request);
-        // 用户不能查看测试接口
-        if (loginUser == null || (!loginUser.getUserRole().equals("admin") && !loginUser.getUserRole().equals("管理员"))){
-            if (interfaceInfo.getStatus().equals(2)){
-                throw new BusinessException(ErrorCode.ERROR_FORBIDDEN);
-            }
+        // 普通用户和游客只能查看上线接口
+        if (!interfaceInfo.getStatus().equals(InterfaceInfoStatusEnum.ONLINE.getValue())
+                && (loginUser == null || UserConstant.DEFAULT_ROLE.equals(loginUser.getUserRole()))){
+            throw new BusinessException(ErrorCode.ERROR_FORBIDDEN);
         }
 
         InterfaceInfoVO interfaceInfoVO = interfaceInfoService.getInterfaceInfoVO(interfaceInfo);
@@ -256,8 +258,8 @@ public class InterfaceInfoController {
 
         User loginUser = userService.getLoginUserPermitNull(request);
 
-        // 普通用户和游客只能看到上线接口
-        if (loginUser == null || (!loginUser.getUserRole().equals(UserConstant.ADMIN_ROLE) && !loginUser.getUserRole().equals("管理员"))){
+        // 普通用户和游客只能查看上线接口
+        if (loginUser == null || UserConstant.DEFAULT_ROLE.equals(loginUser.getUserRole())){
             List<InterfaceInfo> interfaceInfos = interfaceInfoPage.getRecords().stream().filter(
                     interfaceInfo ->
                             interfaceInfo.getStatus().equals(1)
@@ -395,7 +397,6 @@ public class InterfaceInfoController {
 
             // 创建一个req对象
             ApiRequest apiRequest = new ApiRequest();
-            apiRequest.setClientType("Web");
             apiRequest.setTraceId(LogInterceptor.TRACE_ID_KEY_CACHE.get());
 
             Map<String, Object> userRequestParams = interfaceInfoInvokeRequest.getUserRequestParams();

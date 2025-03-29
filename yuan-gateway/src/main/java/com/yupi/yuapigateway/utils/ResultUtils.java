@@ -1,7 +1,7 @@
-package com.yupi.yuapicommon.utils;
+package com.yupi.yuapigateway.utils;
 
-import com.yupi.yuapicommon.common.BaseResponse;
 import com.yupi.yuapicommon.common.ErrorCode;
+import com.yupi.yuapigateway.common.BaseResponse;
 
 /**
  * 返回工具类
@@ -10,28 +10,6 @@ import com.yupi.yuapicommon.common.ErrorCode;
  */
 public class ResultUtils {
 
-    /**
-     * 成功
-     *
-     * @param data
-     * @param <T>
-     * @return
-     */
-    public static <T> BaseResponse<T> success(T data) {
-        return new BaseResponse<>(0, data, "ok");
-    }
-
-    /**
-     * 成功
-     *
-     * @param data    返回数据
-     * @param message 自定义消息
-     * @param <T>     泛型类型
-     * @return BaseResponse
-     */
-    public static <T> BaseResponse<T> success(T data, String message) {
-        return new BaseResponse<>(0, data, message);
-    }
 
     /**
      * 失败

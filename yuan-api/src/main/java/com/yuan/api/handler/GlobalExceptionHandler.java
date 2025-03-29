@@ -1,9 +1,9 @@
 package com.yuan.api.handler;
 
 import com.cxmapi.common.exception.YuanapiSdkException;
-import com.yupi.yuapicommon.common.BaseResponse;
+import com.yuan.api.common.BaseResponse;
+import com.yuan.api.utils.ResultUtils;
 import com.yupi.yuapicommon.exception.BusinessException;
-import com.yupi.yuapicommon.utils.ResultUtils;
 import com.yupi.yuapicommon.common.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.ExceptionHandler;

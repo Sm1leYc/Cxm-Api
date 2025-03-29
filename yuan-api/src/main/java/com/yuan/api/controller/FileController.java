@@ -1,20 +1,11 @@
 package com.yuan.api.controller;
 
-import cn.hutool.core.io.FileUtil;
 import com.yuan.api.common.BaseResponse;
-import com.yuan.api.common.ResultUtils;
-import com.yuan.api.service.UserService;
+import com.yuan.api.utils.ResultUtils;
 import com.yupi.yuapicommon.exception.BusinessException;
-import com.yuan.api.model.dto.file.UploadFileRequest;
 import com.yuan.api.utils.TencentCosUtils;
 import com.yupi.yuapicommon.common.ErrorCode;
-import com.yuan.api.model.enums.FileUploadBizEnum;
 
-import java.util.Arrays;
-import javax.annotation.Resource;
-import javax.servlet.http.HttpServletRequest;
-
-import com.yupi.yuapicommon.model.entity.User;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;

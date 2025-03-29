@@ -183,7 +183,6 @@ public class NetUtils {
 
         // 获取所有响应头的名称
         Collection<String> headerNames = response.getHeaderNames();
-
         // 遍历每个响应头并构建字符串，过滤掉敏感头部
         for (String headerName : headerNames) {
             if (!SENSITIVE_HEADERS.contains(headerName)) { // 如果不是敏感头部

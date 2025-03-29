@@ -1,7 +1,7 @@
 package com.yupi.yuapigateway.service;
 
 import com.yupi.yuapicommon.service.InnerRedisService;
-import com.yupi.yuapigateway.common.RedisUtils;
+import com.yupi.yuapigateway.utils.RedisUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboService;
 

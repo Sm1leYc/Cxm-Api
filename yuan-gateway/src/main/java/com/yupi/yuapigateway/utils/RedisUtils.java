@@ -1,4 +1,4 @@
-package com.yupi.yuapigateway.common;
+package com.yupi.yuapigateway.utils;
 
 
 import com.google.common.collect.HashMultimap;

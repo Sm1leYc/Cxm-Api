@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yuan.api.annotation.AuthCheck;
 import com.yuan.api.common.*;
 import com.yuan.api.constant.UserConstant;
+import com.yuan.api.utils.ResultUtils;
 import com.yupi.yuapicommon.exception.BusinessException;
 import com.yuan.api.utils.ThrowUtils;
 import com.yuan.api.model.dto.user.*;
@@ -17,7 +18,6 @@ import com.yuan.api.service.UserService;
 
 import java.util.Date;
 import java.util.List;
-import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 
 import io.swagger.v3.oas.annotations.tags.Tag;

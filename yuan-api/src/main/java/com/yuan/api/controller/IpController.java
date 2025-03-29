@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.gson.Gson;
 import com.yuan.api.annotation.AuthCheck;
-import com.yuan.api.common.ResultUtils;
+import com.yuan.api.utils.ResultUtils;
 import com.yupi.yuapicommon.exception.BusinessException;
 import com.yuan.api.model.dto.ip.BannIpRequest;
 import com.yuan.api.model.dto.ip.UnBannIpRequest;
