@@ -1,6 +1,8 @@
 package com.yuan.api.interceptor;
 
+import com.yupi.yuapicommon.constant.HttpConstant;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -8,6 +10,7 @@ import org.springframework.web.servlet.ModelAndView;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.UUID;
 
@@ -18,15 +21,18 @@ import java.util.UUID;
 @Slf4j
 @Component
 public class LoggingInterceptor implements HandlerInterceptor {
-    
-    private static final String TRACE_ID_KEY = "traceId";
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        // 生成唯一跟踪ID并存入MDC
-        String traceId = UUID.randomUUID().toString();
-        MDC.put(TRACE_ID_KEY, traceId);
-        request.setAttribute(TRACE_ID_KEY, traceId);
+        // 跟踪ID存入MDC（从网关转发请求头获取）
+        String traceId = request.getHeader(HttpConstant.TRACE_ID_HEADER.toLowerCase());
+
+        if (StringUtils.isNotBlank(traceId)){
+            MDC.put(HttpConstant.TRACE_ID_HEADER, traceId);
+        } else {
+            MDC.put(HttpConstant.TRACE_ID_HEADER, "No TraceId");
+        }
+
         request.setAttribute("startTime", System.currentTimeMillis());
 
         boolean shouldProceed = true;
@@ -47,7 +53,7 @@ public class LoggingInterceptor implements HandlerInterceptor {
             return shouldProceed;
         } finally {
             if (!shouldProceed) {
-                MDC.remove(TRACE_ID_KEY); // 返回false时立即清除MDC
+                MDC.remove(HttpConstant.TRACE_ID_HEADER); // 返回false时立即清除MDC
             }
         }
     }
@@ -63,6 +69,8 @@ public class LoggingInterceptor implements HandlerInterceptor {
             // 计算处理时间
             long startTime = (Long) request.getAttribute("startTime");
             long executeTime = System.currentTimeMillis() - startTime;
+
+            Collection<String> headerNames = response.getHeaderNames();
 
             // 记录响应信息
             log.info("Response Status: {}", response.getStatus());

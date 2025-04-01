@@ -25,11 +25,13 @@ public enum ErrorCode {
     ERROR_INTERNAL_SERVER(500, "系统内部异常"),
 
 
-    OPERATION_ERROR(501, "操作失败"),
+
     /**
      * 网关错误或代理错误
      */
     ERROR_BAD_GATEWAY(502, "网关错误或代理错误"),
+
+
 
     NOT_AUTH(503, "无权限"),
 
@@ -37,45 +39,32 @@ public enum ErrorCode {
      * API密钥无效
      */
     ERROR_INVALID_API_KEY(1001, "API密钥无效"),
+    NOT_LOGIN_ERROR(1002, "未登录"),
+    SIGNATURE_ERROR(1003, "签名认证失败"),
 
-    /**
-     * 参数无效（包括值无效和类型错误）
-     */
-    ERROR_INVALID_PARAMETER(2002, "参数无效（包括值无效和类型错误）"),
+
+
+    ERROR_INVALID_PARAMETER(2001, "参数无效（包括值无效和类型错误）"),
+    NOT_FOUND_ERROR(2002, "请求数据不存在"),
 
     /**
      * 接口服务不可用
      */
-    ERROR_SERVICE_UNAVAILABLE(2003, "服务不可用"),
+    ERROR_SERVICE_UNAVAILABLE(2003, "接口服务不可用"),
 
-    NOT_LOGIN_ERROR(2003, "未登录"),
 
-//    /**
-//     * 账号已封禁
-//     */
-//    PROHIBITED(40001, "账号已封禁"),
 
-    /**
-     * 网络错误或请求超时
-     */
-    ERROR_NETWORK(3001, "网络错误或请求超时"),
-
-    /**
-     * 超过速率限制
-     */
-    ERROR_RATE_LIMIT(3002, "超过速率限制"),
+    OPERATION_ERROR(3001, "操作失败"),
 
     /**
      * 上传文件异常
      */
-    UPLOAD_ERROR(3003, "上传文件异常"),
+    UPLOAD_ERROR(3002, "上传文件异常"),
 
     /**
      * 扣除积分异常
      */
-    DEDUCE_POINT_ERROR(3004, "扣除积分发生异常"),
-
-    NOT_FOUND_ERROR(3005, "请求数据不存在");
+    DEDUCE_POINT_ERROR(3003, "扣除积分发生异常");
 
     /**
      * 状态码

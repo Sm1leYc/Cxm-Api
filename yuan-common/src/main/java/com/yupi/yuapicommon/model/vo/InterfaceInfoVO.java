@@ -20,7 +20,6 @@ import java.util.List;
 @Data
 public class InterfaceInfoVO implements Serializable {
 
-    private final static Gson GSON = new Gson();
     /**
      * 主键
      */
@@ -108,13 +107,6 @@ public class InterfaceInfoVO implements Serializable {
      * 请求类型
      */
     private String method;
-
-    /**
-     * 调用次数
-     */
-    private Integer totalNum;
-
-
 
     /**
      * 实例代码

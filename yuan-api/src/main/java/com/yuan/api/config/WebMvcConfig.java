@@ -19,7 +19,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addInterceptor(loggingInterceptor)
                 .addPathPatterns("/**")  // 拦截所有路径
                 .excludePathPatterns(
-                        "/interfaceInfo/invoke",
+//                        "/interfaceInfo/invoke",
                         "/swagger-ui/**",
                         "/v3/api-docs/**");  // 排除Swagger相关路径
     }
