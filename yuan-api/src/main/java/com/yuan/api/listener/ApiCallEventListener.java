@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
 import java.util.Date;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 @Slf4j
@@ -22,7 +24,6 @@ public class ApiCallEventListener {
     @Async
     @EventListener
     public void handleApiCallEvent(ApiCallEvent event) {
-
         if (StringUtils.isBlank(event.getTraceId())){
             return;
         }
@@ -38,9 +39,9 @@ public class ApiCallEventListener {
         apiCallHistory.setInterfaceId(event.getInterfaceInfo().getId());
         apiCallHistory.setDuration(event.getTotalTimeMillis());
 
-        apiCallHistory.setRequestHeaders(event.getRequestHeader());
+        apiCallHistory.setRequestHeaders(buildHeadersString(event.getRequestHeader()));
         apiCallHistory.setRequestBody(event.getRequestParam());
-        apiCallHistory.setResponseHeaders(event.getResponseHeader());
+        apiCallHistory.setResponseHeaders(buildHeadersString(event.getResponseHeader()));
         apiCallHistory.setResponseBody(event.getResponseData());
         apiCallHistory.setResponseCode(event.getResponseCode());
         apiCallHistory.setSize(event.getResponseSizeKB());
@@ -48,5 +49,11 @@ public class ApiCallEventListener {
         apiCallHistory.setStatus(String.valueOf(event.getResponseCode() == 0 ? 1 : 0));
 
         apiCallHistoryService.save(apiCallHistory);
+    }
+
+    private String buildHeadersString(Map<String, String> headers) {
+        return headers.entrySet().stream()
+                .map(entry -> entry.getKey() + ": " + entry.getValue())
+                .collect(Collectors.joining("\n"));
     }
 }

@@ -2,6 +2,7 @@ package com.yuan.api.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.yuan.api.model.dto.interfaceinfo.InterfaceInfoInvokeRequest;
 import com.yupi.yuapicommon.model.entity.InterfaceInfo;
 import com.yupi.yuapicommon.model.vo.InterfaceInfoVO;
 
@@ -31,6 +32,9 @@ public interface InterfaceInfoService extends IService<InterfaceInfo> {
     void addInvokeCounts(long interfaceId);
 
     Integer getTotalInvokeCount();
+
+    // 生成cURL命令
+    String generateCurlCommand(InterfaceInfoInvokeRequest request, String accessKey, String secretKey);
 
 
 }

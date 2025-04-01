@@ -2,6 +2,7 @@ package com.yuan.api.controller;
 
 import com.yuan.api.annotation.AuthCheck;
 import com.yuan.api.common.BaseResponse;
+import com.yuan.api.constant.RedisConstant;
 import com.yuan.api.utils.ResultUtils;
 import com.yuan.api.constant.UserConstant;
 import com.yuan.api.model.entity.ApiCallHistory;
@@ -38,7 +39,7 @@ public class AnalysisController {
         this.redisUtils = redisUtils;
     }
 
-    private static final String REDIS_KEY = "api_calls";
+
 
     /**
      * 返回接口错误率和耗时
@@ -90,7 +91,7 @@ public class AnalysisController {
             String date = today.minusDays(i).toString();
 
             // 从 Redis 中获取对应日期的数据
-            String count = redisUtils.hmGet(REDIS_KEY, date);
+            String count = redisUtils.hmGet(RedisConstant.INTERFACE_CALLS_KEY, date);
 
             ApiCallStatisticsVO statisticsVO = new ApiCallStatisticsVO();
             statisticsVO.setTime(date);

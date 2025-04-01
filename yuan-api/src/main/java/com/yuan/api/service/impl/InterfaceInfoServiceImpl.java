@@ -3,12 +3,16 @@ package com.yuan.api.service.impl;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.cxmapi.api.v20231124.utils.HttpUtils;
+import com.yuan.api.constant.RedisConstant;
+import com.yuan.api.model.dto.interfaceinfo.InterfaceInfoInvokeRequest;
 import com.yuan.api.utils.RedisUtils;
 import com.yupi.yuapicommon.exception.BusinessException;
 import com.yupi.yuapicommon.common.ErrorCode;
 import com.yupi.yuapicommon.model.entity.InterfaceInfo ;
 import com.yuan.api.mapper.InterfaceInfoMapper ;
 import com.yuan.api.service.InterfaceInfoService;
+import com.yupi.yuapicommon.model.entity.User;
 import com.yupi.yuapicommon.model.vo.InterfaceInfoVO;
 import com.yupi.yuapicommon.model.vo.RequestParamsRemarkVO;
 import com.yupi.yuapicommon.model.vo.ResponseParamsRemarkVO;
@@ -21,6 +25,7 @@ import org.springframework.util.CollectionUtils;
 import javax.annotation.Resource;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -41,9 +46,6 @@ public class InterfaceInfoServiceImpl extends ServiceImpl<InterfaceInfoMapper, I
         this.interfaceInfoMapper = interfaceInfoMapper;
         this.redisUtils = redisUtils;
     }
-
-    private static final String REDIS_KEY = "api_calls";
-
 
 
     @Override
@@ -125,9 +127,55 @@ public class InterfaceInfoServiceImpl extends ServiceImpl<InterfaceInfoMapper, I
         String today = LocalDate.now().toString();
 
         // 自增当天调用次数
-        redisUtils.hmSet(REDIS_KEY, today,
-                String.valueOf(Integer.parseInt(redisUtils.hmGet(REDIS_KEY, today) == null ? "0" : redisUtils.hmGet(REDIS_KEY, today)) + 1));
+        redisUtils.hmSet(RedisConstant.INTERFACE_CALLS_KEY, today,
+                String.valueOf(Integer.parseInt(redisUtils.hmGet(RedisConstant.INTERFACE_CALLS_KEY, today) == null ? "0" : redisUtils.hmGet(RedisConstant.INTERFACE_CALLS_KEY, today)) + 1));
 
+    }
+
+    @Override
+    public String generateCurlCommand(InterfaceInfoInvokeRequest request, String accessKey, String secretKey) {
+        String params = HttpUtils.getParam(
+                request.getMethod(),
+                request.getUserRequestParams());
+
+        Map<String, String> headers = HttpUtils.getHeader(params, accessKey, secretKey);
+
+        // 构建cURL命令
+        return buildCurlCommand(
+                request,
+                params,
+                accessKey,
+                headers.get("X-Nonce"),
+                headers.get("X-Timestamp"),
+                headers.get("X-Sign")
+        );
+    }
+
+    private String buildCurlCommand(InterfaceInfoInvokeRequest request, String params,
+                                    String accessKey, String nonce, String timestamp, String sign) {
+        StringBuilder curl = new StringBuilder();
+        String method = request.getMethod().toUpperCase();
+        String url = request.getHost() + request.getUrl();
+
+        curl.append("curl -X ").append(method);
+
+        // 处理GET请求的参数
+        if ("GET".equalsIgnoreCase(method) && params != null && !params.isEmpty()) {
+            url = url + "?" + HttpUtils.buildQueryStringForUrl(request.getUserRequestParams());
+        }
+
+        curl.append(" '").append(url).append("' \\\n");
+        curl.append("  -H 'X-AccessKey: ").append(accessKey).append("' \\\n");
+        curl.append("  -H 'X-Nonce: ").append(nonce).append("' \\\n");
+        curl.append("  -H 'X-Timestamp: ").append(timestamp).append("' \\\n");
+        curl.append("  -H 'X-Sign: ").append(sign).append("'");
+
+        if (!"GET".equalsIgnoreCase(method) && params != null && !params.isEmpty()) {
+            curl.append(" \\\n  -H 'Content-Type: application/json' \\\n");
+            curl.append("  -d '").append(JSONUtil.toJsonStr(params)).append("'");
+        }
+
+        return curl.toString();
     }
 }
 

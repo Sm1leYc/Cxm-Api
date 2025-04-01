@@ -1,7 +1,9 @@
 package com.yupi.yuapigateway.filter;
 
+import com.cxmapi.api.v20231124.utils.HttpUtils;
 import com.cxmapi.common.SignUtil;
 import com.yupi.yuapicommon.common.ErrorCode;
+import com.yupi.yuapicommon.constant.HttpConstant;
 import com.yupi.yuapicommon.exception.BusinessException;
 import com.yupi.yuapicommon.model.entity.InterfaceInfo;
 import com.yupi.yuapicommon.model.entity.User;
@@ -71,13 +73,11 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
     @Resource
     private IpBlacklistConfig ipBlacklistConfig;
 
-    private static final long ONE_MINUTES = (long) 60;
+    private static final long EXPIRE = 300L;
 
     private static final String NONCE_PREFIX = "api:nonce:";
 
     private static final String API_PREFIX = "api:res:";
-
-    private static final String TRACE_ID_HEADER = "X-Trace-Id";
 
 
     @Override
@@ -88,18 +88,28 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             ServerHttpRequest request = exchange.getRequest();
             String method = Objects.requireNonNull(request.getMethod()).toString();
             String ipAddress = NetUtils.getIpAddress(request);
+            String url = request.getURI().toString();
+            String param = "";
+            if ("GET".equals(method)){
+                param = HttpUtils.getParamsAfterAmpersand(url);
+            }else {
+                String requestBody = exchange.getAttribute("cachedRequestBody");
+                if (!Objects.isNull(requestBody)){
+                    param = requestBody.toString();
+                }
+            }
 
-            String traceId = request.getHeaders().getFirst(TRACE_ID_HEADER);
+            String traceId = request.getHeaders().getFirst(HttpConstant.TRACE_ID_HEADER);
             if (StringUtils.isBlank(traceId)) {
                 traceId = UUID.randomUUID().toString();
             }
 
             // 记录参数
-            String cacheKey = logParam(request, traceId, method, ipAddress);
+            String cacheKey = logParam(exchange, param, traceId, method, ipAddress);
 
             // 检测ak sk 是否合法
             HttpHeaders headers = request.getHeaders();
-            String accessKey = headers.getFirst("x-AccessKey");
+            String accessKey = headers.getFirst("X-AccessKey");
 
             // 检测用户是否存在
             User invokeUser = null;
@@ -109,11 +119,11 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
                 throw new BusinessException(ErrorCode.ERROR_INTERNAL_SERVER);
             }
             if (invokeUser == null) {
-                throw new BusinessException(ErrorCode.ERROR_FORBIDDEN, "禁止访问，请先检查您的ak/sk是否配置正确或稍后再试");
+                throw new BusinessException(ErrorCode.ERROR_INVALID_API_KEY);
             }
 
             // 鉴权
-            checkAuthority(headers, invokeUser.getSecretKey(), ipAddress);
+            checkAuthority(headers, invokeUser.getSecretKey(), param, ipAddress);
 
             //  判断接口是否存在 以及请求方法
             InterfaceInfo interfaceInfo = null;
@@ -150,21 +160,14 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
 
                     // 返回缓存的响应
                     ServerHttpResponse response = exchange.getResponse();
-                    response.setStatusCode(HttpStatus.OK);
                     DataBuffer buffer = response.bufferFactory().wrap(cachedResponse.getBytes(StandardCharsets.UTF_8));
                     return response.writeWith(Mono.just(buffer));
                 }
             }
 
-//             添加 Trace ID 到请求头中，并转发请求
-            ServerHttpRequest mutatedRequest = request.mutate()
-                    .header(TRACE_ID_HEADER, traceId)
-                    .build();
-            ServerWebExchange mutatedExchange = exchange.mutate().request(mutatedRequest).build();
-
 
             // 转发调用接口
-            return handleResponse(mutatedExchange, chain,interfaceInfo.getId(), invokeUser.getId(), interfaceInfo.getRequiredPoints(),
+            return handleResponse(exchange, chain,interfaceInfo.getId(), invokeUser.getId(), interfaceInfo.getRequiredPoints(),
                     cacheEnabled, cacheDuration, cacheKey);
         }, -2);  // 需要确保装饰器的优先级高于 NettyWriteResponseFilter（默认优先级为 -1）否则原始响应可能已提交到客户端，导致装饰逻辑被跳过
     }
@@ -183,7 +186,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             HttpStatus statusCode = originalResponse.getStatusCode();
 
             if(statusCode == HttpStatus.OK){
-                // 创建一个自定义的响应装饰器
+                // 创建一个自定义的响应装饰器 拦截响应流
                 ServerHttpResponseDecorator decoratedResponse = new ServerHttpResponseDecorator(originalResponse) {
 
                     @Override
@@ -199,6 +202,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
                                 byte[] content = new byte[dataBuffer.readableByteCount()];
                                 dataBuffer.read(content);
                                 DataBufferUtils.release(dataBuffer);//释放掉内存
+
                                 // 构建日志并输出
                                 StringBuilder sb2 = new StringBuilder(200);
                                 List<Object> rspArgs = new ArrayList<>();
@@ -244,12 +248,11 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
     }
 
     // 鉴权(timestamp + nonce)
-    private void checkAuthority(HttpHeaders headers, String secretKey, String sourceAddress) throws BusinessException{
+    private void checkAuthority(HttpHeaders headers, String secretKey, String param,String sourceAddress) throws BusinessException{
         String clientType = headers.getFirst("X-ClientType");
         String nonce = headers.getFirst("x-Nonce");
         String timestamp = headers.getFirst("x-Timestamp");
         String sign = headers.getFirst("x-Sign");
-        String body = headers.getFirst("x-Body");
 
         // 请求头中参数必须完整
         if (StringUtils.isAnyBlank(nonce, sign, timestamp)) {
@@ -268,10 +271,10 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
 
         /*
          * 2.重放验证
-         * 判断timestamp时间戳与当前时间是否操过60s（过期时间根据业务情况设置）,如果超过了就提示签名过期。
+         * 判断timestamp时间戳与服务器时间是否操过60s（过期时间根据业务情况设置）,如果超过了就提示签名过期。
          */
         long currentTime = System.currentTimeMillis() / 1000;
-        if (StringUtils.isNotBlank(timestamp) && (currentTime - Long.parseLong(timestamp)) >= ONE_MINUTES) {
+        if (StringUtils.isNotBlank(timestamp) && (currentTime - Long.parseLong(timestamp)) >= EXPIRE) {
             throw new BusinessException(ErrorCode.ERROR_FORBIDDEN);
         }
 
@@ -286,56 +289,34 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             // 请求重复，拒绝请求
             throw new BusinessException(ErrorCode.ERROR_FORBIDDEN);
         } else {
-            redisUtils.set(NONCE_PREFIX + nonce, nonce, 60L);
-        }
-
-        try {
-            body = URLDecoder.decode(body,"utf-8");
-        } catch (UnsupportedEncodingException e) {
-            log.error("body解码错误！");
+            redisUtils.set(NONCE_PREFIX + nonce, nonce, EXPIRE);
         }
 
         /**
          * 4.判断签名是否一致
          */
-        String serverSign = SignUtil.getSign(body == null ? "" : body, secretKey, nonce, timestamp);
+        String serverSign = SignUtil.getSign(StringUtils.isBlank(param) ? "" : param, secretKey, nonce, timestamp);
         if (StringUtils.isBlank(sign) || !sign.equals(serverSign)){
-            throw new BusinessException(ErrorCode.ERROR_INVALID_API_KEY);
+            throw new BusinessException(ErrorCode.SIGNATURE_ERROR);
         }
     }
 
     // 记录参数
-    private String logParam(ServerHttpRequest request, String traceId, String method, String sourceAddress){
-        URI uri = request.getURI();
+    private String logParam(ServerWebExchange exchange, String param, String traceId, String method, String sourceAddress){
+        ServerHttpRequest request = exchange.getRequest();
         HttpHeaders headers = request.getHeaders();
-        String body = "";
-        //解码，解决中文乱码问题
-        body = headers.getFirst("x-Body");
-        String accessKey = headers.getFirst("x-accessKey");
-
-        try {
-            body = URLDecoder.decode(body,"utf-8");
-        } catch (UnsupportedEncodingException e) {
-            log.error("body解码错误！");
-        }
-
-        Object param = "";
-        if ("GET".equals(method)){
-            param = uri;
-        }else {
-            param = body;
-        }
+        String accessKey = headers.getFirst("X-AccessKey");
 
         String clientType = headers.getFirst("X-ClientType");
 
-        String paramHash = DigestUtils.md5Hex(param.toString());
+        String paramHash = DigestUtils.md5Hex(param);
         String cacheKey = API_PREFIX + request.getPath() + ":" + method + ":" + paramHash;
 
         log.info("---------------------------");
-        log.info("| 请求唯一标识：" + traceId);
+        log.info("| 请求traceId：" + traceId);
         log.info("| 请求ak：" + accessKey);
         log.info("| 请求来源：" + clientType);
-        log.info("| 请求路径：" + request.getPath());
+        log.info("| 请求路径：" + request.getURI().getPath());
         log.info("| 请求方法：" + method);
         log.info("| 请求IP：" + sourceAddress);
         log.info("| 请求参数：" + param);

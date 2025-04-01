@@ -1,17 +1,26 @@
 package com.yuan.api.controller;
 
 import cn.hutool.json.JSONUtil;
+import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cxmapi.api.v20231124.client.YuanApiClient;
 import com.cxmapi.api.v20231124.model.request.ApiRequest;
+import com.cxmapi.api.v20231124.utils.HttpUtils;
+import com.cxmapi.common.SignUtil;
 import com.cxmapi.common.exception.YuanapiSdkException;
+import com.cxmapi.common.model.ApiResponse;
 import com.cxmapi.common.model.Config;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.yuan.api.annotation.AuthCheck;
-import com.yuan.api.aop.LogInterceptor;
 import com.yuan.api.common.*;
 import com.yuan.api.constant.CommonConstant;
+import com.yuan.api.constant.RedisConstant;
 import com.yuan.api.constant.UserConstant;
+import com.yuan.api.event.ApiCallEvent;
+import com.yuan.api.utils.RedisUtils;
+import com.yupi.yuapicommon.constant.HttpConstant;
 import com.yupi.yuapicommon.exception.BusinessException;
 import com.yuan.api.model.dto.interfaceinfo.*;
 import com.yuan.api.utils.GenerateCodeUtils;
@@ -25,15 +34,23 @@ import com.yupi.yuapicommon.model.enums.InterfaceInfoStatusEnum;
 import com.yupi.yuapicommon.model.vo.InterfaceInfoVO;
 import com.yupi.yuapicommon.service.InnerRedisService;
 import com.yuan.api.utils.ResultUtils;
+import com.yupi.yuapicommon.utils.NetUtils;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.util.StopWatch;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -50,7 +67,9 @@ public class InterfaceInfoController {
     private InterfaceInfoService interfaceInfoService;
     private UserService userService;
     private InnerRedisService innerRedisService;
-    
+
+    private ApplicationEventPublisher eventPublisher;
+
     @Resource
     public void setInterfaceInfoService(InterfaceInfoService interfaceInfoService) {
         this.interfaceInfoService = interfaceInfoService;
@@ -65,6 +84,11 @@ public class InterfaceInfoController {
     @DubboReference(timeout = 3000, check = false)
     public void setInnerRedisService(InnerRedisService innerRedisService) {
         this.innerRedisService = innerRedisService;
+    }
+
+    @Resource
+    public void setEventPublisher(ApplicationEventPublisher applicationEventPublisher){
+        this.eventPublisher = applicationEventPublisher;
     }
 
 
@@ -205,6 +229,7 @@ public class InterfaceInfoController {
         if (StringUtils.isNotBlank(code)){
             interfaceInfoVO.setExampleCode(code);
         }
+
         return ResultUtils.success(interfaceInfoVO);
     }
 
@@ -363,10 +388,13 @@ public class InterfaceInfoController {
      *
      */
     @PostMapping("/invoke")
-    public BaseResponse<Object> invokeInterfaceInfo(@RequestBody InterfaceInfoInvokeRequest interfaceInfoInvokeRequest, HttpServletRequest request) {
+    public BaseResponse<String> invokeInterfaceInfo(@RequestBody InterfaceInfoInvokeRequest interfaceInfoInvokeRequest, HttpServletRequest request) {
         if (interfaceInfoInvokeRequest == null || interfaceInfoInvokeRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
         }
+
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
 
         String host = interfaceInfoInvokeRequest.getHost();
         String path = interfaceInfoInvokeRequest.getUrl();
@@ -376,15 +404,13 @@ public class InterfaceInfoController {
             throw new BusinessException(ErrorCode.ERROR_FORBIDDEN, "当前操作无效，请稍后再试或者联系管理员！");
         }
 
-        LogInterceptor.USER_INFO_CACHE.set(loginUser);
+        String clientIp = NetUtils.getClientIpAddress(request);
 
         InterfaceInfo interfaceInfo = new InterfaceInfo();
         interfaceInfo.setId(interfaceInfoInvokeRequest.getId());
         interfaceInfo.setMethod(interfaceInfoInvokeRequest.getMethod());
         interfaceInfo.setUrl(interfaceInfoInvokeRequest.getUrl());
         interfaceInfo.setName(interfaceInfoInvokeRequest.getName());
-
-        LogInterceptor.INTERFACE_INFO_CACHE.set(interfaceInfo);
 
         Config config = new Config.Builder()
                 .setBaseurl(host)
@@ -397,7 +423,6 @@ public class InterfaceInfoController {
 
             // 创建一个req对象
             ApiRequest apiRequest = new ApiRequest();
-            apiRequest.setTraceId(LogInterceptor.TRACE_ID_KEY_CACHE.get());
 
             Map<String, Object> userRequestParams = interfaceInfoInvokeRequest.getUserRequestParams();
             apiRequest.setMethod(interfaceInfoInvokeRequest.getMethod());
@@ -406,12 +431,31 @@ public class InterfaceInfoController {
             // 创建一个client对象
             YuanApiClient yuanApiClient = new YuanApiClient(config);
 
-            String result = "";
             try {
-                result = yuanApiClient.invokeApi(apiRequest);
-                return ResultUtils.success(result);
+                ApiResponse result = yuanApiClient.invokeApi(apiRequest);
+
+                // 计算响应时间
+                if (stopWatch.isRunning()){
+                    stopWatch.stop();
+                }
+                long totalTimeMillis = stopWatch.getTotalTimeMillis();
+
+                String resultBody = result.getBody();
+                // 计算响应数据包大小
+                byte[] responseBytes = getResponseBytes(resultBody);
+                int responseSize = responseBytes.length;
+                double sizeInKB = Math.round(responseSize / 1024.0 * 100.0) / 100.0;
+
+                // 记录API日志
+                if (loginUser.getLoggingEnabled() == 1){
+                    logApiCallAsync(loginUser, clientIp, interfaceInfo, result, userRequestParams, totalTimeMillis, sizeInKB);
+                }
+
+                return ResultUtils.success(result.getBody(), totalTimeMillis, sizeInKB);
             } catch (YuanapiSdkException e) {
                 throw new BusinessException(e.errorCode, e.getMessage());
+            } catch (IOException e){
+                throw new BusinessException(ErrorCode.ERROR_INTERNAL_SERVER, e.getMessage());
             }
     }
 
@@ -423,6 +467,68 @@ public class InterfaceInfoController {
     @GetMapping("/apiCount")
     public BaseResponse<Integer> getApiCallCount(HttpServletRequest request) {
         return ResultUtils.success(interfaceInfoService.getTotalInvokeCount());
+    }
+
+    // 生成cURL命令行
+    @PostMapping("/generateCurl")
+    public BaseResponse<String> generateCurlCommand(@RequestBody InterfaceInfoInvokeRequest interfaceInfoInvokeRequest, HttpServletRequest request) {
+        if (interfaceInfoInvokeRequest == null) {
+            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+        }
+
+        User loginUser = userService.getLoginUser(request);
+
+        String curlCommand = interfaceInfoService.generateCurlCommand(interfaceInfoInvokeRequest, loginUser.getAccessKey(), loginUser.getSecretKey());
+        return ResultUtils.success(curlCommand);
+    }
+
+    private void logApiCallAsync(User loginUser, String clientIp, InterfaceInfo interfaceInfo,
+                                ApiResponse result, Map<String, Object> userRequestParams,
+                                long totalTimeMillis, double sizeInKB) {
+        Map<String, String> reqHeaders = result.getReqHeaders();
+        Map<String, String> resHeaders = result.getResHeaders();
+        String resultBody = result.getBody();
+
+        int finalCode = ErrorCode.SUCCESS.getCode();
+        try {
+            // 解析内层的 data 字段
+            JsonObject parsedData = JsonParser.parseString(resultBody).getAsJsonObject();
+            int innerCode = parsedData.get("code").getAsInt(); // 获取内层的 code
+            finalCode = innerCode;  // 内层 code 解析成功时，覆盖最终的 code
+        } catch (Exception e) {
+            // 解析失败时保持默认的SUCCESS code
+        }
+
+        // 发布事件 异步记录日志
+        eventPublisher.publishEvent(new ApiCallEvent(
+                this,
+                resHeaders.getOrDefault(HttpConstant.TRACE_ID_HEADER, UUID.randomUUID().toString()),
+                loginUser,
+                clientIp,
+                interfaceInfo,
+                totalTimeMillis,
+                reqHeaders,
+                JSON.toJSONString(userRequestParams),
+                finalCode,
+                resultBody,
+                resHeaders,
+                sizeInKB
+        ));
+
+    }
+
+    private byte[] getResponseBytes(String result) throws IOException {
+        if (result == null) {
+            return new byte[0];
+        }
+
+        // 将响应对象转换为字节数组
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(result);
+            oos.flush();
+            return baos.toByteArray();
+        }
     }
 
 

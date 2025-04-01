@@ -1,6 +1,7 @@
 package com.yuan.api.utils;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.HashMultimap;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.connection.RedisConnection;
@@ -16,6 +17,69 @@ public class RedisUtils {
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    @Resource
+    private RedisTemplate<Object, Object> redisTemplate;
+
+    private final ObjectMapper objectMapper = new ObjectMapper(); // 使用objectMapper进行序列化和反序列化
+
+    // ============================== 对象操作 ==============================
+
+    /**
+     * 存储对象
+     * @param key 键
+     * @param value 值
+     * @return 是否成功
+     */
+    public boolean setObject(String key, Object value) {
+        try {
+            redisTemplate.opsForValue().set(key, value);
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * 存储对象并设置过期时间
+     * @param key 键
+     * @param value 值
+     * @param timeout 过期时间
+     * @param timeUnit 时间单位
+     * @return 是否成功
+     */
+    public boolean setObject(String key, Object value, long timeout, TimeUnit timeUnit) {
+        try {
+            redisTemplate.opsForValue().set(key, value, timeout, timeUnit);
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * 获取对象
+     * @param key 键
+     * @return 对象
+     */
+    public Object getObject(String key) {
+        return redisTemplate.opsForValue().get(key);
+    }
+
+    /**
+     * 获取对象并转换为指定类型
+     * @param key 键
+     * @param clazz 目标类型
+     * @return 对象
+     */
+    public <T> T getObject(String key, Class<T> clazz) {
+        Object value = redisTemplate.opsForValue().get(key);
+        return value != null ? objectMapper.convertValue(value, clazz) : null;
+    }
+
+    // ============================== String操作 ==============================
 
     /**
      * 写入缓存

@@ -57,7 +57,7 @@ public class ApiCallHistoryController {
     @GetMapping("/delete")
     public BaseResponse<Boolean> deleteApiCallHistory(String id ,HttpServletRequest request) {
         if (StringUtils.isBlank(id)){
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "测试账号无法删除调用历史");
+            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
         }
 
         userService.getLoginUser(request);

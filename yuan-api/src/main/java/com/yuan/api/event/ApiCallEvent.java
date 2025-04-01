@@ -5,6 +5,8 @@ import com.yupi.yuapicommon.model.entity.User;
 import lombok.Data;
 import org.springframework.context.ApplicationEvent;
 
+import java.util.Map;
+
 public class ApiCallEvent extends ApplicationEvent {
 
     private String traceId;
@@ -12,16 +14,16 @@ public class ApiCallEvent extends ApplicationEvent {
     private String clientIp;
     private InterfaceInfo interfaceInfo;
     private long totalTimeMillis;
-    private String requestHeader;
+    private Map<String, String> requestHeader;
     private String requestParam;
     private int responseCode;
     private String responseData;
-    private String responseHeader;
+    private Map<String, String> responseHeader;
     private double responseSizeKB;
 
     public ApiCallEvent(Object source, String traceId, User user, String clientIp, InterfaceInfo interfaceInfo,
-                        long totalTimeMillis, String requestHeader, String requestParam, int responseCode,
-                        String responseData, String responseHeader, double responseSizeKB) {
+                        long totalTimeMillis, Map<String, String> requestHeader, String requestParam, int responseCode,
+                        String responseData, Map<String, String> responseHeader, double responseSizeKB) {
         super(source);
         this.traceId = traceId;
         this.user = user;
@@ -76,11 +78,11 @@ public class ApiCallEvent extends ApplicationEvent {
         this.totalTimeMillis = totalTimeMillis;
     }
 
-    public String getRequestHeader() {
+    public Map<String, String> getRequestHeader() {
         return requestHeader;
     }
 
-    public void setRequestHeader(String requestHeader) {
+    public void setRequestHeader(Map<String, String> requestHeader) {
         this.requestHeader = requestHeader;
     }
 
@@ -108,11 +110,11 @@ public class ApiCallEvent extends ApplicationEvent {
         this.responseData = responseData;
     }
 
-    public String getResponseHeader() {
+    public Map<String, String> getResponseHeader() {
         return responseHeader;
     }
 
-    public void setResponseHeader(String responseHeader) {
+    public void setResponseHeader(Map<String, String> responseHeader) {
         this.responseHeader = responseHeader;
     }
 

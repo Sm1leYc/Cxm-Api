@@ -21,6 +21,12 @@ public class ResultUtils {
         return new BaseResponse<>(0, data, "ok", null);
     }
 
+    public static <T> BaseResponse<T> success(T data, Long costTime, double size) {
+        return new BaseResponse<>(0, data, "ok", costTime, size);
+    }
+
+
+
     /**
      * 成功
      *
