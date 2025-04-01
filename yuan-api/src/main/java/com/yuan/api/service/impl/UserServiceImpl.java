@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yuan.api.constant.CommonConstant;
+import com.yuan.api.model.dto.user.UserLoginRequest;
 import com.yupi.yuapicommon.exception.BusinessException;
 import com.yuan.api.utils.ThrowUtils;
 import com.yuan.api.mapper.UserMapper;
@@ -21,12 +22,13 @@ import com.yuan.api.utils.SqlUtils;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Random;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import javax.annotation.Resource;
 //import javax.mail.internet.MimeMessage;
+import javax.annotation.Resource;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import com.yupi.yuapicommon.common.ErrorCode;
 import com.yupi.yuapicommon.model.entity.User;
@@ -35,9 +37,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
-//import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
@@ -134,7 +135,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public LoginUserVO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
+    public LoginUserVO userLogin(UserLoginRequest userLoginRequest, HttpServletRequest request, HttpServletResponse response) {
+        String userAccount = userLoginRequest.getUserAccount();
+        String userPassword = userLoginRequest.getUserPassword();
+
         // 1. 校验
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "参数为空");
@@ -171,9 +175,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             updateUserLoginFailCount(user, false);
             throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "密码不正确");
         }
-        // 3. 记录用户的登录态
         updateUserLoginFailCount(user, true);
+
+        // 3. 用户信息存储到Spring Session中
         request.getSession().setAttribute(USER_LOGIN_STATE, user);
+        // 将 Session 与用户名关联
+        request.getSession().setAttribute(
+                FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME,
+                user.getUserAccount()
+        );
+
         return this.getLoginUserVO(user);
     }
 
@@ -292,11 +303,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
      */
     @Override
     public boolean userLogout(HttpServletRequest request) {
-        if (request.getSession().getAttribute(USER_LOGIN_STATE) == null) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "未登录");
+        // 1. 获取当前 Session 并立即失效
+        HttpSession session = request.getSession(false);
+        if (session != null){
+//            String userAccount = (String) session.getAttribute(FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME);
+
+            // 2. Session 失效（会自动清除 Redis 中的数据及索引）
+            session.invalidate();
         }
-        // 移除登录态
-        request.getSession().removeAttribute(USER_LOGIN_STATE);
+
         return true;
     }
 

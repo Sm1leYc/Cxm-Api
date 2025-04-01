@@ -3,14 +3,15 @@ package com.yuan.api.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.yuan.api.model.dto.apicallhistory.LoggingStatusRequest;
+import com.yuan.api.model.dto.user.UserLoginRequest;
 import com.yuan.api.model.dto.user.UserQueryRequest;
-import com.yuan.api.model.dto.user.UserUpdateMyRequest;
 import com.yuan.api.model.dto.user.UserUpdatePwdRequest;
 import com.yupi.yuapicommon.model.entity.User;
 import com.yuan.api.model.vo.LoginUserVO;
 import com.yuan.api.model.vo.UserVO;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * 用户服务
@@ -33,12 +34,12 @@ public interface UserService extends IService<User> {
     /**
      * 用户登录
      *
-     * @param userAccount  用户账户
-     * @param userPassword 用户密码
+     * @param userLoginRequest
      * @param request
+     * @param response
      * @return 脱敏后的用户信息
      */
-    LoginUserVO userLogin(String userAccount, String userPassword, HttpServletRequest request);
+    LoginUserVO userLogin(UserLoginRequest userLoginRequest, HttpServletRequest request, HttpServletResponse response);
 
     /**
      * 获取当前登录用户
