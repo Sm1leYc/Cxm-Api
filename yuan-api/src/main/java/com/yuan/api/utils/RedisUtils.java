@@ -6,6 +6,8 @@ import com.google.common.collect.HashMultimap;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.*;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -111,8 +113,7 @@ public class RedisUtils {
         boolean result = false;
         try {
             ValueOperations<String, String> operations = stringRedisTemplate.opsForValue();
-            operations.set(key, value);
-            stringRedisTemplate.expire(key, expireTime, TimeUnit.SECONDS);
+            operations.set(key, value, expireTime, TimeUnit.SECONDS);
             result = true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -138,6 +139,30 @@ public class RedisUtils {
             e.printStackTrace();
         }
         return result;
+    }
+
+    // 设置过期时间带偏移量
+    public boolean setWithRandomOffset(final String key, String value, Long expireTime) {
+        boolean result = false;
+        try {
+            ValueOperations<String, String> operations = stringRedisTemplate.opsForValue();
+            operations.set(key, value);
+
+            // 添加随机偏移量
+            long randomOffset = (long)(expireTime * 0.05 * Math.random()); // 5%随机偏移
+            long finalExpire = expireTime + randomOffset;
+
+            stringRedisTemplate.expire(key, finalExpire, TimeUnit.SECONDS);
+            result = true;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    public Long incrementLoginFailCount(String luaScript, String redisKey, Object... args) {
+        RedisScript<Long> script = new DefaultRedisScript<>(luaScript, Long.class);
+        return stringRedisTemplate.execute(script, Collections.singletonList(redisKey), args);
     }
 
     /**

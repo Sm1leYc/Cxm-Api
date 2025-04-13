@@ -2,9 +2,13 @@ package com.yupi.yuapigateway.utils;
 
 
 import com.google.common.collect.HashMultimap;
+import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.*;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -12,10 +16,48 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Component
+@Slf4j
 public class RedisUtils {
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    @Resource
+    private RedissonClient redissonClient;
+
+
+    // ============================Lock=============================
+
+    /**
+     * 尝试获取分布式锁
+     * @param lockKey 锁的key
+     * @param waitTime 获取锁的等待时间(毫秒)
+     * @param leaseTime 锁的持有时间(毫秒)
+     * @return 是否获取成功
+     */
+    public boolean tryLock(String lockKey, long waitTime, long leaseTime) {
+        try {
+            // 使用Redisson客户端获取锁
+            RLock lock = redissonClient.getLock(lockKey);
+            return lock.tryLock(waitTime, leaseTime, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // 恢复中断状态
+            return false;
+        }
+    }
+
+    /**
+     * 释放分布式锁
+     * @param lockKey 锁的key
+     */
+    public void unlock(String lockKey) {
+        RLock lock = redissonClient.getLock(lockKey);
+        if (lock.isLocked() && lock.isHeldByCurrentThread()) {
+            lock.unlock();
+        }
+    }
+
+    // ============================String=============================
 
     /**
      * 写入缓存
@@ -76,6 +118,25 @@ public class RedisUtils {
         return result;
     }
 
+    // 设置过期时间带偏移量
+    public boolean setWithRandomOffset(final String key, String value, Long expireTime) {
+        boolean result = false;
+        try {
+            ValueOperations<String, String> operations = stringRedisTemplate.opsForValue();
+            operations.set(key, value);
+
+            // 添加随机偏移量
+            long randomOffset = (long)(expireTime * 0.05 * Math.random()); // 5%随机偏移
+            long finalExpire = expireTime + randomOffset;
+
+            stringRedisTemplate.expire(key, finalExpire, TimeUnit.SECONDS);
+            result = true;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
     /**
      * 设置key有效期
      * @param key
@@ -124,6 +185,29 @@ public class RedisUtils {
             stringRedisTemplate.delete(keys);
     }
 
+    public void safeRemovePattern(final String pattern) {
+        // 使用SCAN分批次获取匹配的键
+        Set<String> keys = new HashSet<>();
+        ScanOptions options = ScanOptions.scanOptions().match(pattern).count(100).build();
+        try (Cursor<byte[]> cursor = stringRedisTemplate.executeWithStickyConnection(
+                (RedisConnection connection) -> connection.scan(options))) {
+            while (cursor.hasNext()) {
+                keys.add(new String(cursor.next()));
+            }
+        }
+
+        if (!keys.isEmpty()) {
+            // 分批次删除，每批处理100个键，防止bigkey
+            List<String> keyList = new ArrayList<>(keys);
+            int batchSize = 100;
+            for (int i = 0; i < keyList.size(); i += batchSize) {
+                List<String> batch = keyList.subList(i, Math.min(i + batchSize, keyList.size()));
+                // 异步删除，不阻塞主线程
+                stringRedisTemplate.unlink(batch);
+            }
+        }
+    }
+
     /**
      * 删除key,也删除对应的value
      *
@@ -134,6 +218,37 @@ public class RedisUtils {
             stringRedisTemplate.delete(key);
         }
     }
+
+    // 获取key大小
+    public Long getKeySize(String key) {
+        return stringRedisTemplate.execute(
+                new DefaultRedisScript<>("return redis.call('MEMORY', 'USAGE', KEYS[1])", Long.class),
+                Collections.singletonList(key)
+        );
+    }
+
+    // 针对bigkey，判断是否异步删除
+    public void smartDelete(String key) {
+        try {
+            Long size = getKeySize(key);
+
+            if (size == null || size <= 0) {
+                return; // Key不存在
+            }
+
+            if (size < 10 * 1024) { // 小于10KB
+                stringRedisTemplate.delete(key); // 同步删除
+            } else {
+                stringRedisTemplate.unlink(key); // 异步删除
+
+                // 记录大Key删除监控
+                log.info("Deleted big key: {} (size: {} bytes)", key, size);
+            }
+        } catch (Exception e) {
+            log.error("删除Key失败: {}", key, e);
+        }
+    }
+
 
     /**
      * 判断缓存中是否有对应的value
