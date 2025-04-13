@@ -1,4 +1,4 @@
-package com.yupi.yuapigateway.filter;
+package com.yupi.yuapigateway.config;
 
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.context.annotation.Bean;

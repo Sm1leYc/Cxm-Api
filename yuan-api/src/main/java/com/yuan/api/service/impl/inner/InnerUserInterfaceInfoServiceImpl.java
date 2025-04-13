@@ -20,9 +20,9 @@ public class InnerUserInterfaceInfoServiceImpl implements InnerUserInterfaceInfo
     private UserInterfaceInfoService userInterfaceInfoService;
 
     @Override
-    public boolean invokeCount(long interfaceInfoId, long userId, Integer requiredPoints) {
-        log.info("=======接口id:{},用户名:{},执行扣除积分=======", interfaceInfoId, userId);
-        return userInterfaceInfoService.invokeCount(interfaceInfoId, userId, requiredPoints);
+    public boolean invokeCount(long interfaceInfoId, long userId, Integer requiredPoints, String traceId) {
+        log.info("======= {} 执行扣除积分=======", traceId);
+        return userInterfaceInfoService.invokeCount(traceId, interfaceInfoId, userId, requiredPoints);
     }
 
     @Override

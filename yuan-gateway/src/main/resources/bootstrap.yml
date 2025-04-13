@@ -25,13 +25,13 @@ spring:
         fallback:
           mode: custom
       datasource:
-        flow-rule:
-          nacos:
-            server-addr: 127.0.0.1:8848
-            dataId: cxm-gateway-sentinel-flow
-            groupId: DEFAULT_GROUP
-            data-type: json
-            rule-type: flow
+#        flow-rule:
+#          nacos:
+#            server-addr: 127.0.0.1:8848
+#            dataId: cxm-gateway-sentinel-flow
+#            groupId: DEFAULT_GROUP
+#            data-type: json
+#            rule-type: flow
         degrade-rule:
           nacos:
             server-addr: 127.0.0.1:8848
@@ -47,5 +47,4 @@ spring:
 # authority：授权规则
 # param-flow：热点参数规则
 # gw-flow：网关限流规则（需确认是否支持）
-
 

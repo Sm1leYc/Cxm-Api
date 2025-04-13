@@ -25,7 +25,7 @@ public class InnerInterfaceInfoServiceImpl implements InnerInterfaceInfoService 
     @Override
     public InterfaceInfo getInterfaceInfo(String url, String method) {
         if (StringUtils.isAnyBlank(url, method)) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         QueryWrapper<InterfaceInfo> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("url", url);

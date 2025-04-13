@@ -16,8 +16,9 @@ public class InnerRedisServiceImpl implements InnerRedisService {
 
     @Override
     public void deleteKeys(String cacheKey) {
-        // 清理旧缓存的逻辑
+        // 清理旧缓存
         log.info("-------缓存删除开始：{} ", cacheKey);
-        redisUtils.removePattern(cacheKey);
+        redisUtils.safeRemovePattern(cacheKey);
+        log.info("-------缓存删除结束：{} ", cacheKey);
     }
 }

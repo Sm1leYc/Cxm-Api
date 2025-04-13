@@ -8,6 +8,7 @@ import com.yupi.yuapicommon.exception.BusinessException;
 import com.yupi.yuapigateway.common.BaseResponse;
 import com.yupi.yuapigateway.utils.ResultUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -20,13 +21,18 @@ import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebExceptionHandler;
 import reactor.core.publisher.Mono;
 
+import java.net.ConnectException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import java.nio.channels.ClosedChannelException;
+
 /**
  * 错误web异常处理程序
  */
 @Configuration
 @Slf4j
 @Order(-1)
-public class GlobalExceptionHandler implements WebExceptionHandler {
+public class GlobalExceptionHandler implements ErrorWebExceptionHandler {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -42,15 +48,17 @@ public class GlobalExceptionHandler implements WebExceptionHandler {
         BaseResponse error;
 
         if (ex instanceof BusinessException) {
-            response.setStatusCode(HttpStatus.BAD_GATEWAY);
             error = ResultUtils.error(((BusinessException) ex).getCode(), ex.getMessage());
             log.error("【自定义异常】：{}", ex.getMessage());
-        } else {
-            response.setStatusCode(HttpStatus.BAD_GATEWAY);
-            error = ResultUtils.error(ErrorCode.ERROR_BAD_GATEWAY);
+        } else if (ex instanceof ClosedChannelException) {
+            error = ResultUtils.error(ErrorCode.SERVICE_UNAVAILABLE);
+            log.error("【网关连接异常】：{}", ex.getMessage());
+        }else {
+            error = ResultUtils.error(ErrorCode.BAD_GATEWAY_ERROR);
             log.error("【网关异常】：{}", ex);
         }
 
+        response.setStatusCode(HttpStatus.BAD_GATEWAY);
         try {
             byte[] errorBytes = objectMapper.writeValueAsBytes(error);
             DataBuffer dataBuffer = bufferFactory.wrap(errorBytes);
@@ -60,4 +68,5 @@ public class GlobalExceptionHandler implements WebExceptionHandler {
             return Mono.error(e);
         }
     }
+
 }

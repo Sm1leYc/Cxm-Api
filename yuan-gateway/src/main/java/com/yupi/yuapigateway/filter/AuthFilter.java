@@ -17,7 +17,10 @@ import com.yupi.yuapigateway.config.IpBlacklistConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.dubbo.common.constants.ClusterRules;
+import org.apache.dubbo.common.constants.LoadbalanceRules;
 import org.apache.dubbo.config.annotation.DubboReference;
+import org.jetbrains.annotations.NotNull;
 import org.reactivestreams.Publisher;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -37,14 +40,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import javax.annotation.Resource;
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+
+import static com.yupi.yuapicommon.constant.RedisConstant.API_PREFIX;
 
 /**
  * API请求鉴权 gateway -> interface
@@ -67,7 +67,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
     @DubboReference
     private InnerInterfaceInfoService innerInterfaceInfoService;
 
-    @DubboReference
+    @DubboReference(cluster = ClusterRules.FAIL_FAST, loadbalance = LoadbalanceRules.ROUND_ROBIN)
     private InnerUserInterfaceInfoService innerUserInterfaceInfoService;
 
     @Resource
@@ -77,7 +77,13 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
 
     private static final String NONCE_PREFIX = "api:nonce:";
 
-    private static final String API_PREFIX = "api:res:";
+
+    private static final String LOCK_PREFIX = "lock:user_interface:";
+
+    // 获取锁的超时时间(毫秒)
+    private static final long lockTimeout = 3000;
+    // 锁的过期时间(毫秒)，防止死锁
+    private static final long expireTime = 5000;
 
 
     @Override
@@ -116,10 +122,10 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             try {
                 invokeUser = innerUserService.getInvokeUser(accessKey);
             } catch (Exception e) {
-                throw new BusinessException(ErrorCode.ERROR_INTERNAL_SERVER);
+                throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
             }
             if (invokeUser == null) {
-                throw new BusinessException(ErrorCode.ERROR_INVALID_API_KEY);
+                throw new BusinessException(ErrorCode.INVALID_API_KEY);
             }
 
             // 鉴权
@@ -130,17 +136,17 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             try {
                 interfaceInfo = innerInterfaceInfoService.getInterfaceInfo(request.getPath().value(), method);
             } catch (Exception e) {
-                throw new BusinessException(ErrorCode.ERROR_INTERNAL_SERVER);
+                throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
             }
 
             if (interfaceInfo == null || interfaceInfo.getStatus() == 0) {
-                throw new BusinessException(ErrorCode.ERROR_SERVICE_UNAVAILABLE);
+                throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE);
             }
 
             // 普通用户只能调用上线接口
             if (interfaceInfo.getStatus() != InterfaceInfoStatusEnum.ONLINE.getValue()
                     && "user".equals(invokeUser.getUserRole())){
-                throw new BusinessException(ErrorCode.ERROR_FORBIDDEN);
+                throw new BusinessException(ErrorCode.FORBIDDEN_ERROR);
             }
 
             // 是否使用缓存结果
@@ -151,112 +157,160 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
                 // 从Redis获取缓存数据
                 String cachedResponse = redisUtils.get(cacheKey);
                 if (cachedResponse != null) {
-                    log.info("走了缓存：{}", cacheKey);
+                    log.info("{}走了缓存：{}", traceId, cacheKey);
 
-                    // 接口调用计数与积分校验
-                    if (!invokeUserInterfaceInfo(invokeUser.getId(), interfaceInfo.getId(), interfaceInfo.getRequiredPoints())) {
-                        throw new BusinessException(ErrorCode.DEDUCE_POINT_ERROR, "接口调用失败，请先检查您的积分是否充足！");
+                    // 基于用户和接口
+                    String lockKey = LOCK_PREFIX + invokeUser.getId() + ":" + interfaceInfo.getId();
+
+                    try {
+                        // 尝试获取分布式锁
+                        boolean locked = redisUtils.tryLock(lockKey, lockTimeout, expireTime);
+                        if (!locked) {
+                            throw new BusinessException(ErrorCode.FORBIDDEN_ERROR, "系统繁忙");
+                        }
+
+                        try {
+                            if (!invokeUserInterfaceInfo(invokeUser.getId(), interfaceInfo.getId(),
+                                    interfaceInfo.getRequiredPoints(), traceId)) {
+                                throw new BusinessException(ErrorCode.DEDUCE_POINT_ERROR,
+                                        "接口调用失败，请先检查您的积分是否充足！");
+                            }
+
+                            // 返回缓存的响应
+                            ServerHttpResponse response = exchange.getResponse();
+                            DataBuffer buffer = response.bufferFactory()
+                                    .wrap(cachedResponse.getBytes(StandardCharsets.UTF_8));
+                            return response.writeWith(Mono.just(buffer));
+                        } catch (BusinessException e){
+                            // 其他系统异常
+                            log.error("处理业务逻辑异常", e);
+                            return Mono.error(e);
+                        } finally {
+                            // 释放锁
+                            redisUtils.unlock(lockKey);
+                        }
+                    } catch (Exception e) {
+                        log.error("缓存处理异常", e);
+                        throw new BusinessException(ErrorCode.BAD_GATEWAY_ERROR);
                     }
-
-                    // 返回缓存的响应
-                    ServerHttpResponse response = exchange.getResponse();
-                    DataBuffer buffer = response.bufferFactory().wrap(cachedResponse.getBytes(StandardCharsets.UTF_8));
-                    return response.writeWith(Mono.just(buffer));
                 }
             }
 
 
             // 转发调用接口
-            return handleResponse(exchange, chain,interfaceInfo.getId(), invokeUser.getId(), interfaceInfo.getRequiredPoints(),
-                    cacheEnabled, cacheDuration, cacheKey);
+            return handleResponse(exchange, chain,
+                    interfaceInfo.getId(),
+                    invokeUser.getId(),
+                    interfaceInfo.getRequiredPoints(),
+                    traceId,
+                    cacheEnabled,
+                    cacheDuration,
+                    cacheKey);
         }, -2);  // 需要确保装饰器的优先级高于 NettyWriteResponseFilter（默认优先级为 -1）否则原始响应可能已提交到客户端，导致装饰逻辑被跳过
     }
 
 
     public Mono<Void> handleResponse(ServerWebExchange exchange, GatewayFilterChain chain,
                                      long interfaceInfoId, long userId, Integer requiredPoints,
+                                     String traceId,
                                      boolean cacheEnabled,
                                      int cacheDuration,
                                      String cacheKey) {
 
         try {
             ServerHttpResponse originalResponse = exchange.getResponse();
+
+            if (originalResponse.getStatusCode() != HttpStatus.OK) {
+                return chain.filter(exchange); // 非200状态码直接放行
+            }
+
             DataBufferFactory bufferFactory = originalResponse.bufferFactory();
 
-            HttpStatus statusCode = originalResponse.getStatusCode();
+            // 成功调用接口时，扣除积分
+            ServerHttpResponseDecorator decoratedResponse = new ServerHttpResponseDecorator(originalResponse) {
+                @NotNull
+                @Override
+                public Mono<Void> writeWith(@NotNull Publisher<? extends DataBuffer> body) {
+                    if (body instanceof Flux) {
+                        Flux<? extends DataBuffer> fluxBody = Flux.from(body);
+                        return super.writeWith(fluxBody.flatMap(dataBuffer -> {
+                            // 扣除积分
+                            String lockKey =  LOCK_PREFIX + userId + "_" + interfaceInfoId;
 
-            if(statusCode == HttpStatus.OK){
-                // 创建一个自定义的响应装饰器 拦截响应流
-                ServerHttpResponseDecorator decoratedResponse = new ServerHttpResponseDecorator(originalResponse) {
+                            try {
+                                // 尝试获取分布式锁
+                                boolean locked = redisUtils.tryLock(lockKey, lockTimeout, expireTime);
 
-                    @Override
-                    public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
-                        if (body instanceof Flux) {
-                            Flux<? extends DataBuffer> fluxBody = Flux.from(body);
-                            return super.writeWith(fluxBody.flatMap(dataBuffer -> {
-                                // 扣除积分
-                                if (!invokeUserInterfaceInfo(userId, interfaceInfoId, requiredPoints)) {
-                                    return Mono.error(new BusinessException(ErrorCode.DEDUCE_POINT_ERROR, "接口调用失败，请先检查您的积分是否充足！"));
+                                if (!locked) {
+                                    return Mono.error(new BusinessException(ErrorCode.DEDUCE_POINT_ERROR));
                                 }
-                                // 读取响应数据并释放内存
-                                byte[] content = new byte[dataBuffer.readableByteCount()];
-                                dataBuffer.read(content);
-                                DataBufferUtils.release(dataBuffer);//释放掉内存
 
-                                // 构建日志并输出
-                                StringBuilder sb2 = new StringBuilder(200);
-                                List<Object> rspArgs = new ArrayList<>();
-                                rspArgs.add(originalResponse.getStatusCode());
-                                String data = new String(content, StandardCharsets.UTF_8);//data
-                                sb2.append(data);
-
-                                if (cacheEnabled){
-                                    if (cacheDuration == -1){
-                                        redisUtils.set(cacheKey, data);
-                                    } else {
-                                        redisUtils.set(cacheKey, data, (long) cacheDuration);
+                                try {
+                                    // 扣除积分
+                                    if (!invokeUserInterfaceInfo(userId, interfaceInfoId, requiredPoints, traceId)) {
+                                        return Mono.error(new BusinessException(ErrorCode.DEDUCE_POINT_ERROR, "接口调用失败，请先检查您的积分是否充足！"));
                                     }
+
+                                    // 读取响应数据 释放内存
+                                    byte[] content = new byte[dataBuffer.readableByteCount()];
+                                    dataBuffer.read(content);
+                                    DataBufferUtils.release(dataBuffer);
+                                    String data = new String(content, StandardCharsets.UTF_8); //data
+
+                                    if (cacheEnabled){
+                                        if (cacheDuration == -1){
+                                            redisUtils.set(cacheKey, data);
+                                        } else {
+                                            redisUtils.set(cacheKey, data, (long) cacheDuration);
+                                        }
+                                    }
+                                    // 包装处理后的响应数据并返回
+                                    return Mono.just(bufferFactory.wrap(content));
+                                } catch (BusinessException e){
+                                    // 其他系统异常
+                                    log.error("处理业务逻辑异常", e);
+                                    return Mono.error(e);
+                                }finally {
+                                    // 释放锁
+                                    redisUtils.unlock(lockKey);
                                 }
-                                // 包装处理后的响应数据并返回
-                                return Mono.just(bufferFactory.wrap(content));
-                            }));
-                        } else {
-                            log.error("<--- {} 响应code异常", getStatusCode());
-                        }
-                        return super.writeWith(body);
+                            } catch (Exception e) {
+                                log.error("分布式锁处理异常.\n", e);
+                                return Mono.error(new BusinessException(ErrorCode.DEDUCE_POINT_ERROR));
+                            }
+                        }));
                     }
-                };
-                // 使用装饰后的响应继续执行过滤器链
-                return chain.filter(exchange.mutate().response(decoratedResponse).build());
-            }
-            // 对于其他状态码，直接继续执行过滤器链
-            return chain.filter(exchange);//降级处理返回数据
-        }catch (Exception e){
+                    return super.writeWith(body);
+                }
+            };
+            // 使用装饰后的响应继续执行过滤器链
+            return chain.filter(exchange.mutate().response(decoratedResponse).build());
+        }catch (Exception e) {
             log.error("网关处理异常.\n" + e);
             return chain.filter(exchange);
         }
     }
 
-    private boolean invokeUserInterfaceInfo(long userId, long interfaceInfoId, Integer requiredPoints) {
+    private boolean invokeUserInterfaceInfo(long userId, long interfaceInfoId, Integer requiredPoints, String traceId) {
         try {
-            log.info("开始积分调用~~~~~~");
-            return innerUserInterfaceInfoService.invokeCount(interfaceInfoId, userId, requiredPoints);
+            log.info("=== {}开始积分调用 ===", traceId);
+            boolean invoked = innerUserInterfaceInfoService.invokeCount(interfaceInfoId, userId, requiredPoints, traceId);
+            log.info("=== {}结束积分调用 ===", traceId);
+            return invoked;
         } catch (Exception e) {
-            log.error("invokeCount error:", e);
             throw new BusinessException(ErrorCode.DEDUCE_POINT_ERROR);
         }
     }
 
     // 鉴权(timestamp + nonce)
     private void checkAuthority(HttpHeaders headers, String secretKey, String param,String sourceAddress) throws BusinessException{
-        String clientType = headers.getFirst("X-ClientType");
         String nonce = headers.getFirst("x-Nonce");
         String timestamp = headers.getFirst("x-Timestamp");
         String sign = headers.getFirst("x-Sign");
 
         // 请求头中参数必须完整
         if (StringUtils.isAnyBlank(nonce, sign, timestamp)) {
-            throw new BusinessException(ErrorCode.ERROR_FORBIDDEN);
+            throw new BusinessException(ErrorCode.FORBIDDEN_ERROR);
         }
 
         /**
@@ -266,7 +320,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         boolean ipInBlacklist = ipBlacklistConfig.getIps().contains(sourceAddress);
         if (ipInBlacklist){
             log.info("当前ip处于黑名单中，禁止请求。ip:{}", sourceAddress);
-            throw new BusinessException(ErrorCode.ERROR_FORBIDDEN);
+            throw new BusinessException(ErrorCode.FORBIDDEN_ERROR);
         }
 
         /*
@@ -275,21 +329,21 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
          */
         long currentTime = System.currentTimeMillis() / 1000;
         if (StringUtils.isNotBlank(timestamp) && (currentTime - Long.parseLong(timestamp)) >= EXPIRE) {
-            throw new BusinessException(ErrorCode.ERROR_FORBIDDEN);
+            throw new BusinessException(ErrorCode.FORBIDDEN_ERROR);
         }
 
         /*
          * 3.通过redis判断nonce是否被使用过
          */
         if (nonce == null){
-            throw new BusinessException(ErrorCode.ERROR_FORBIDDEN);
+            throw new BusinessException(ErrorCode.FORBIDDEN_ERROR);
         }
         Boolean nonceExists = redisUtils.exists(NONCE_PREFIX + nonce);
         if (nonceExists){
             // 请求重复，拒绝请求
-            throw new BusinessException(ErrorCode.ERROR_FORBIDDEN);
+            throw new BusinessException(ErrorCode.FORBIDDEN_ERROR);
         } else {
-            redisUtils.set(NONCE_PREFIX + nonce, nonce, EXPIRE);
+            redisUtils.setWithRandomOffset(NONCE_PREFIX + nonce, nonce, EXPIRE);
         }
 
         /**
@@ -307,15 +361,12 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         HttpHeaders headers = request.getHeaders();
         String accessKey = headers.getFirst("X-AccessKey");
 
-        String clientType = headers.getFirst("X-ClientType");
-
         String paramHash = DigestUtils.md5Hex(param);
         String cacheKey = API_PREFIX + request.getPath() + ":" + method + ":" + paramHash;
 
         log.info("---------------------------");
-        log.info("| 请求traceId：" + traceId);
+        log.info("| traceId：" + traceId);
         log.info("| 请求ak：" + accessKey);
-        log.info("| 请求来源：" + clientType);
         log.info("| 请求路径：" + request.getURI().getPath());
         log.info("| 请求方法：" + method);
         log.info("| 请求IP：" + sourceAddress);
