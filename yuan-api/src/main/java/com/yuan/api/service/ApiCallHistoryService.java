@@ -7,5 +7,4 @@ import com.yuan.api.model.entity.ApiCallHistory;
 
 public interface ApiCallHistoryService extends IService<ApiCallHistory> {
 
-
 }

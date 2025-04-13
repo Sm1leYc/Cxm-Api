@@ -1,7 +1,7 @@
 package com.yuan.api.task;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.yuan.api.config.TaskCleanupProperties;
+import com.yuan.api.constant.TaskCleanupProperties;
 import com.yuan.api.mapper.ApiCallHistoryMapper;
 import com.yuan.api.model.entity.ApiCallHistory;
 import lombok.extern.slf4j.Slf4j;

@@ -1,5 +1,8 @@
 package com.yuan.api.model.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
@@ -10,7 +13,9 @@ import java.util.Date;
 @Data
 public class ApiCallHistory {
 
-    private String id; // 唯一标识每条记录
+    @TableId(type = IdType.AUTO)
+    private Long id;
+    private String traceId; // 唯一标识每条记录
     private Date timestamp; // API调用时间
     private String httpMethod; // HTTP方法 (GET, POST等)
     private String requestPath; // 请求路径
@@ -26,4 +31,6 @@ public class ApiCallHistory {
     private Long interfaceId; // 接口ID
     private Long duration; // 请求处理时间 (ms)
     private String status; // 调用状态 (成功/失败)
+    @TableLogic
+    private Integer isDelete;
 }

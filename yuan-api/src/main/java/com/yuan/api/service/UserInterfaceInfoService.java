@@ -10,5 +10,5 @@ public interface UserInterfaceInfoService {
      * @param userId
      * @return
      */
-    boolean invokeCount(long interfaceId, long userId, Integer requiredPoints);
+    boolean invokeCount(String traceId, long interfaceId, long userId, Integer requiredPoints);
 }

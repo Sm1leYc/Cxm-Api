@@ -51,7 +51,7 @@ public class InterfaceInfoServiceImpl extends ServiceImpl<InterfaceInfoMapper, I
     @Override
     public void validInterfaceInfo(InterfaceInfo interfaceInfo, boolean add) {
         if (interfaceInfo == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         //todo
         String name = interfaceInfo.getName();
@@ -59,10 +59,10 @@ public class InterfaceInfoServiceImpl extends ServiceImpl<InterfaceInfoMapper, I
         String url = interfaceInfo.getUrl();
         // 有参数则校验
         if (StringUtils.isNotBlank(name) && name.length() > 80) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "接口名称过长");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "接口名称过长");
         }
         if (StringUtils.isNotBlank(description) && description.length() > 8192) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "接口描述过长");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "接口描述过长");
         }
     }
 
@@ -104,10 +104,10 @@ public class InterfaceInfoServiceImpl extends ServiceImpl<InterfaceInfoMapper, I
     }
 
 
+    @Async(value = "poolTaskExecutor")
     @Override
-    @Async
     public void addInvokeCounts(long interfaceId) {
-
+        // 更新单个接口调用次数
         interfaceInfoMapper.addInvokeCounts(interfaceId);
 
         // 每天调用API调用次数+1
@@ -138,7 +138,7 @@ public class InterfaceInfoServiceImpl extends ServiceImpl<InterfaceInfoMapper, I
                 request.getMethod(),
                 request.getUserRequestParams());
 
-        Map<String, String> headers = HttpUtils.getHeader(params, accessKey, secretKey);
+        Map<String, String> headers = HttpUtils.getHeader(null, params, accessKey, secretKey);
 
         // 构建cURL命令
         return buildCurlCommand(

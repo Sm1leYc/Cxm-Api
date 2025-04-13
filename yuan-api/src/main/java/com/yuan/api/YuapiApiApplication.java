@@ -19,7 +19,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @EnableDubbo
 @EnableAspectJAutoProxy(proxyTargetClass = true, exposeProxy = true)
-@EnableAsync
 public class YuapiApiApplication {
 
     public static void main(String[] args) {

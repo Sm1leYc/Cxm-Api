@@ -1,5 +1,6 @@
 package com.yuan.api.service.impl;
 
+
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yuan.api.mapper.ApiCallHistoryMapper;
 import com.yuan.api.mapper.UserMapper;
@@ -12,6 +13,5 @@ import javax.annotation.Resource;
 
 @Service
 public class ApiCallHistoryServiceImpl extends ServiceImpl<ApiCallHistoryMapper, ApiCallHistory> implements ApiCallHistoryService{
-
 
 }

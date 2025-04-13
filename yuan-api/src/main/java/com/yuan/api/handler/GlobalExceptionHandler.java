@@ -21,7 +21,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(YuanapiSdkException.class)
     public BaseResponse<?> yuanapiSdkExceptionHandler(YuanapiSdkException e) {
         log.error("YuanapiSdkException", e);
-        return ResultUtils.error(e.errorCode, e.getMessage());
+        return ResultUtils.error(ErrorCode.SDK_INVOKE_ERROR, e.getMessage());
     }
 
     @ExceptionHandler(BusinessException.class)
@@ -33,6 +33,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public BaseResponse<?> runtimeExceptionHandler(RuntimeException e) {
         log.error("RuntimeException", e);
-        return ResultUtils.error(ErrorCode.ERROR_INTERNAL_SERVER, "系统内部异常");
+        return ResultUtils.error(ErrorCode.INTERNAL_SERVER_ERROR, "系统内部异常");
     }
 }

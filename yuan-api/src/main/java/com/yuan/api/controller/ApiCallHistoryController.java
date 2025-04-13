@@ -2,6 +2,7 @@ package com.yuan.api.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.yuan.api.model.vo.ApiCallHistoryVO;
 import com.yuan.api.utils.ResultUtils;
 import com.yuan.api.common.BaseResponse;
 import com.yuan.api.model.dto.apicallhistory.ApiCallHistoryQuery;
@@ -42,7 +43,7 @@ public class ApiCallHistoryController {
      * @return
      */
     @GetMapping("/get")
-    public BaseResponse<ApiCallHistory> getApiCallHistoryById(String id) {
+    public BaseResponse<ApiCallHistory> getApiCallHistoryById(Long id) {
         ApiCallHistory callHistoryById = apiCallHistoryService.getById(id);
 
         return ResultUtils.success(callHistoryById);
@@ -57,7 +58,7 @@ public class ApiCallHistoryController {
     @GetMapping("/delete")
     public BaseResponse<Boolean> deleteApiCallHistory(String id ,HttpServletRequest request) {
         if (StringUtils.isBlank(id)){
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
 
         userService.getLoginUser(request);
@@ -83,10 +84,11 @@ public class ApiCallHistoryController {
         long size = apiCallHistoryQueryReq.getPageSize();
 
         QueryWrapper<ApiCallHistory> queryWrapper = new QueryWrapper<>();
+        queryWrapper.select("id", "timestamp", "httpMethod", "interfaceName", "status", "duration");
         queryWrapper.eq("userId", apiCallHistoryQueryReq.getUserId());
 
         if (StringUtils.isNotBlank(apiCallHistoryQueryReq.getInterfaceName())) {
-            queryWrapper.like("interfaceName", apiCallHistoryQueryReq.getInterfaceName());
+            queryWrapper.likeRight("interfaceName", apiCallHistoryQueryReq.getInterfaceName());
         }
         if (StringUtils.isNotBlank(apiCallHistoryQueryReq.getHttpMethod())) {
             queryWrapper.eq("httpMethod", apiCallHistoryQueryReq.getHttpMethod());
@@ -97,7 +99,8 @@ public class ApiCallHistoryController {
         queryWrapper.orderByDesc("timestamp");
         Page<ApiCallHistory> page = new Page<>(current, size);
 
-        Page<ApiCallHistory> interfaceInfoPage = apiCallHistoryService.page(page, queryWrapper);;
+        Page<ApiCallHistory> interfaceInfoPage = apiCallHistoryService.page(page, queryWrapper);
+        interfaceInfoPage.convert(ApiCallHistoryVO::objToVo);
         return ResultUtils.success(interfaceInfoPage);
     }
 
@@ -111,12 +114,12 @@ public class ApiCallHistoryController {
     @PostMapping("/updateLoggingStatus")
     public BaseResponse<Boolean> updateLoggingStatus(@RequestBody LoggingStatusRequest loggingStatusRequest, HttpServletRequest request){
         if (loggingStatusRequest == null){
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
 
         User loginUser = userService.getLoginUser(request);
         if (!Objects.equals(loggingStatusRequest.getUserId(), loginUser.getId())){
-            throw new BusinessException(ErrorCode.ERROR_FORBIDDEN);
+            throw new BusinessException(ErrorCode.FORBIDDEN_ERROR);
         }
 
         int i = userService.updateLoggingStatus(loggingStatusRequest);

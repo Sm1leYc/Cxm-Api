@@ -123,6 +123,7 @@ public interface UserService extends IService<User> {
 
     /**
      * 更新积分
+     *
      * @param userId
      * @param requiredPoints
      * @return

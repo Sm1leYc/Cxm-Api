@@ -1,4 +1,4 @@
-package com.yuan.api.config;
+package com.yuan.api.constant;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

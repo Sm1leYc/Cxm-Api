@@ -45,7 +45,7 @@ public class IpController {
     @PostMapping("/ban")
     public BaseResponse<Long> banIps(@RequestBody BannIpRequest bannIpRequest, HttpServletRequest request) {
         if (bannIpRequest == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         BannedIps bannedIps = new BannedIps();
         BeanUtils.copyProperties(bannIpRequest, bannedIps);
@@ -61,7 +61,7 @@ public class IpController {
             long newInterfaceInfoId = bannedIps.getId();
             return ResultUtils.success(newInterfaceInfoId);
         } else {
-            return ResultUtils.error(ErrorCode.ERROR_FORBIDDEN, "请勿重复添加黑名单");
+            return ResultUtils.error(ErrorCode.FORBIDDEN_ERROR, "请勿重复添加黑名单");
         }
     }
 
@@ -76,7 +76,7 @@ public class IpController {
     @PostMapping("/unban")
     public BaseResponse<Boolean> unBanIps(@RequestBody UnBannIpRequest unBannIpRequest, HttpServletRequest request) {
         if (unBannIpRequest == null || unBannIpRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         long id = unBannIpRequest.getId();
         // 判断是否存在
@@ -98,7 +98,7 @@ public class IpController {
     @GetMapping("/get")
     public BaseResponse<BannedIps> getBannedIpById(long id) {
         if (id <= 0) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         BannedIps ip = bannedIpsService.getById(id);
         return ResultUtils.success(ip);
@@ -128,14 +128,14 @@ public class IpController {
     @GetMapping("/list/page")
     public BaseResponse<Page<BannedIps>> listIpsByPage(BannIpRequest bannIpRequest, HttpServletRequest request) {
         if (bannIpRequest == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         BannedIps bannedIps = new BannedIps();
         long current = bannIpRequest.getCurrent();
         long size = bannIpRequest.getPageSize();
         // 限制爬虫
         if (size > 50) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         QueryWrapper<BannedIps> queryWrapper = new QueryWrapper<>(bannedIps);
         Page<BannedIps> interfaceInfoPage = bannedIpsService.page(new Page<>(current, size), queryWrapper);

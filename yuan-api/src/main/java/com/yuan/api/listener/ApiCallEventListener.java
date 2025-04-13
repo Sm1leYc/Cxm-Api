@@ -21,15 +21,15 @@ public class ApiCallEventListener {
     @Resource
     private ApiCallHistoryService apiCallHistoryService;
 
-    @Async
     @EventListener
+    @Async(value = "poolTaskExecutor")
     public void handleApiCallEvent(ApiCallEvent event) {
         if (StringUtils.isBlank(event.getTraceId())){
             return;
         }
 
         ApiCallHistory apiCallHistory = new ApiCallHistory();
-        apiCallHistory.setId(event.getTraceId());
+        apiCallHistory.setTraceId(event.getTraceId());
         apiCallHistory.setUserId(event.getUser().getId());
         apiCallHistory.setClientIp(event.getClientIp());
         apiCallHistory.setHttpMethod(event.getInterfaceInfo().getMethod());

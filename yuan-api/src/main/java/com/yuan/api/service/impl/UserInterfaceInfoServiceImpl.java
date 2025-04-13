@@ -1,5 +1,7 @@
 package com.yuan.api.service.impl;
 
+
+import com.yuan.api.constant.RedisConstant;
 import com.yuan.api.utils.RedisUtils;
 import com.yupi.yuapicommon.exception.BusinessException;
 import com.yuan.api.service.InterfaceInfoService;
@@ -8,10 +10,6 @@ import com.yuan.api.service.UserInterfaceInfoService;
 import com.yupi.yuapicommon.common.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import java.time.LocalDate;
-import org.springframework.transaction.annotation.Transactional;
-
-import javax.annotation.Resource;
 
 @Service
 @Slf4j
@@ -21,31 +19,36 @@ public class UserInterfaceInfoServiceImpl implements UserInterfaceInfoService{
 
     private final InterfaceInfoService interfaceInfoService;
 
-    public UserInterfaceInfoServiceImpl(UserService userService, InterfaceInfoService interfaceInfoService){
+    private final RedisUtils redisUtils;
+
+    public UserInterfaceInfoServiceImpl(UserService userService, InterfaceInfoService interfaceInfoService, RedisUtils redisUtils){
         this.userService = userService;
         this.interfaceInfoService = interfaceInfoService;
+        this.redisUtils = redisUtils;
     }
 
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public boolean invokeCount(long interfaceId, long userId, Integer requiredPoints) {
+    public boolean invokeCount(String traceId, long interfaceId, long userId, Integer requiredPoints) {
         if (interfaceId <= 0 || userId <= 0){
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
 
-        // 检查积分数量是否足够
-        if (!userService.hasEnoughPoints(userId, requiredPoints)){
-            return false;
+        // 对于同一请求 防止重复扣除积分
+        if (redisUtils.exists(RedisConstant.TRACE_ID_PREFIX + traceId)){
+            return true;
         }
-
-        // 更新接口调用次数
-        interfaceInfoService.addInvokeCounts(interfaceId);
 
         // 扣除积分
-        boolean deductedPoints = userService.deductPoints(userId, requiredPoints);
+        boolean deducted = userService.deductPoints(userId, requiredPoints);
 
-        return deductedPoints;
+        if (deducted){
+            redisUtils.setWithRandomOffset(RedisConstant.TRACE_ID_PREFIX + traceId, "", 900L);
+            // 更新接口调用次数
+            interfaceInfoService.addInvokeCounts(interfaceId);
+        }
+
+        return deducted;
     }
 
 

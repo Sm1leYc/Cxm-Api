@@ -55,7 +55,7 @@ public class UserController {
     @PostMapping("/register")
     public BaseResponse<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
         if (userRegisterRequest == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         String username = userRegisterRequest.getUserName();
         String userAccount = userRegisterRequest.getUserAccount();
@@ -78,12 +78,12 @@ public class UserController {
     @PostMapping("/login")
     public BaseResponse<LoginUserVO> userLogin(@RequestBody UserLoginRequest userLoginRequest, HttpServletRequest request, HttpServletResponse response) {
         if (userLoginRequest == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         String userAccount = userLoginRequest.getUserAccount();
         String userPassword = userLoginRequest.getUserPassword();
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         LoginUserVO loginUserVO = userService.userLogin(userLoginRequest, request, response);
         return ResultUtils.success(loginUserVO);
@@ -99,7 +99,7 @@ public class UserController {
     @PostMapping("/logout")
     public BaseResponse<Boolean> userLogout(HttpServletRequest request) {
         if (request == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         boolean result = userService.userLogout(request);
         return ResultUtils.success(result);
@@ -128,7 +128,7 @@ public class UserController {
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Long> addUser(@RequestBody UserAddRequest userAddRequest, HttpServletRequest request) {
         if (userAddRequest == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         User user = new User();
         BeanUtils.copyProperties(userAddRequest, user);
@@ -148,7 +148,7 @@ public class UserController {
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> deleteUser(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
         if (deleteRequest == null || deleteRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         boolean b = userService.removeById(deleteRequest.getId());
         return ResultUtils.success(b);
@@ -166,7 +166,7 @@ public class UserController {
     public BaseResponse<Boolean> updateUser(@RequestBody UserUpdateRequest userUpdateRequest,
             HttpServletRequest request) {
         if (userUpdateRequest == null || userUpdateRequest.getId() == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         User user = new User();
         BeanUtils.copyProperties(userUpdateRequest, user);
@@ -186,7 +186,7 @@ public class UserController {
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<User> getUserById(long id, HttpServletRequest request) {
         if (id <= 0) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         User user = userService.getById(id);
         ThrowUtils.throwIf(user == null, ErrorCode.NOT_FOUND_ERROR);
@@ -237,12 +237,12 @@ public class UserController {
     public BaseResponse<Page<UserVO>> listUserVOByPage(@RequestBody UserQueryRequest userQueryRequest,
             HttpServletRequest request) {
         if (userQueryRequest == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         long current = userQueryRequest.getCurrent();
         long size = userQueryRequest.getPageSize();
         // 限制爬虫
-        ThrowUtils.throwIf(size > 20, ErrorCode.ERROR_INVALID_PARAMETER);
+        ThrowUtils.throwIf(size > 20, ErrorCode.INVALID_PARAMETER);
         Page<User> userPage = userService.page(new Page<>(current, size),
                 userService.getQueryWrapper(userQueryRequest));
         Page<UserVO> userVOPage = new Page<>(current, size, userPage.getTotal());
@@ -264,7 +264,7 @@ public class UserController {
     public BaseResponse<Boolean> updateMyUser(@RequestBody UserUpdateMyRequest userUpdateMyRequest,
             HttpServletRequest request) {
         if (userUpdateMyRequest == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         User loginUser = userService.getLoginUser(request);
         User user = new User();
@@ -285,7 +285,7 @@ public class UserController {
     public BaseResponse<Boolean> updatePwd(@RequestBody UserUpdatePwdRequest userUpdatePwdRequest,
                                               HttpServletRequest request) {
         if (userUpdatePwdRequest == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         return ResultUtils.success(userService.updatePwd(userUpdatePwdRequest, request));
     }
@@ -300,7 +300,7 @@ public class UserController {
     public BaseResponse<Boolean> updateSk(Long userId,
                                            HttpServletRequest request) {
         if (userId == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         return ResultUtils.success(userService.updateSecretKey(userId));
     }
@@ -314,7 +314,7 @@ public class UserController {
     @AuthCheck(mustRole = ADMIN_ROLE)
     public BaseResponse<Boolean> banUser(Long userId, Integer status){
         if (userId == null){
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
 
         User user = userService.getById(userId);

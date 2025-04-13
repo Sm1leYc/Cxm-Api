@@ -24,8 +24,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 //import javax.mail.internet.MimeMessage;
-import javax.annotation.Resource;
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -74,31 +72,35 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     private static final String akPrefix = "ak-";
     private static final String skPrefix = "sk-";
+    // 用户登录失败重试 时间
+    private static final String expireTime = "600";
+
+    private static final String failPrefix = "login:fail:";
 
 
     @Override
     public long userRegister(String username, String userAccount, String userPassword, String checkPassword) {
         // 1. 校验
         if (StringUtils.isAnyBlank(userAccount, userPassword, checkPassword)) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "参数为空");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "参数为空");
         }
         if (username.length() < 4) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "用户昵称过短");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "用户昵称过短");
         }
         if (userAccount.length() < 4) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "用户账号过短");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "用户账号过短");
         }
         if (userPassword.length() < 8 || checkPassword.length() < 8) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "用户密码过短");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "用户密码过短");
         }
         // 要求字母、数字、下划线，长度范围为3到20个字符
         String pattern = "^[a-zA-Z0-9_]{3,20}$";
         if (!userAccount.matches(pattern)) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "要求字母、数字、下划线，长度范围为3到20个字符");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "要求字母、数字、下划线，长度范围为3到20个字符");
         }
         // 密码和校验密码相同
         if (!userPassword.equals(checkPassword)) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "两次输入的密码不一致");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "两次输入的密码不一致");
         }
         // 同步锁
         synchronized (userAccount.intern()) {
@@ -107,7 +109,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             queryWrapper.eq("userAccount", userAccount);
             long count = this.baseMapper.selectCount(queryWrapper);
             if (count > 0) {
-                throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "账号重复");
+                throw new BusinessException(ErrorCode.INVALID_PARAMETER, "账号重复");
             }
             // 2. 加密
             String encryptPassword = DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
@@ -128,7 +130,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             user.setStatus(1);
             boolean saveResult = this.save(user);
             if (!saveResult) {
-                throw new BusinessException(ErrorCode.ERROR_INTERNAL_SERVER, "注册失败，数据库错误");
+                throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "注册失败，数据库错误");
             }
             return user.getId();
         }
@@ -138,47 +140,49 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public LoginUserVO userLogin(UserLoginRequest userLoginRequest, HttpServletRequest request, HttpServletResponse response) {
         String userAccount = userLoginRequest.getUserAccount();
         String userPassword = userLoginRequest.getUserPassword();
+        String redisKey = failPrefix + userAccount;
 
         // 1. 校验
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "参数为空");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "参数为空");
         }
         if (userAccount.length() < 4) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "账号错误");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "账号错误");
         }
         if (userPassword.length() < 8) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "密码错误");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "密码错误");
         }
-        // 2. 加密
-        String encryptPassword = DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
-        // 查询用户是否存在
+
+        String count = redisUtils.get(redisKey);
+        if ("3".equals(count)){
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER,
+                    "密码输入错误超过三次，请10分钟后重试!");
+        }
+
+        // 2.查询用户是否存在
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("userAccount", userAccount);
         User user = this.baseMapper.selectOne(queryWrapper);
-        if (user != null && user.getLoginFailCount() > 2){
-            long minutedBetween = DateUtils.minuteBetween(user.getLastLoginTime(), new Date());
-            // 未超过十分钟
-            if (minutedBetween < 10) {
-                throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "密码输入错误超过三次，请十分钟后重试或者联系管理员！");
-            }
-        }
-        // 用户不存在
+
         if (user == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "用户不存在");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "用户不存在");
         }
         if ("admin".equals(user.getUserRole())){
             user.setUserRole("管理员");
         }
-        // 密码不正确
+
+        // 3. 检查密码是否正确
+        String encryptPassword = DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
         String userPasswordInDb = user.getUserPassword();
         if (!encryptPassword.equals(userPasswordInDb)){
-            updateUserLoginFailCount(user, false);
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "密码不正确");
+            updateUserLoginFailCount(redisKey);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "密码不正确");
         }
-        updateUserLoginFailCount(user, true);
 
-        // 3. 用户信息存储到Spring Session中
-        request.getSession().setAttribute(USER_LOGIN_STATE, user);
+        // 4. 登录成功删除key
+        redisUtils.remove(redisKey);
+        // 用户信息存储到Spring Session中
+        request.getSession().setAttribute(USER_LOGIN_STATE, user.getId());
         // 将 Session 与用户名关联
         request.getSession().setAttribute(
                 FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME,
@@ -186,6 +190,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         );
 
         return this.getLoginUserVO(user);
+    }
+
+    // 登录失败更新redis次数
+    private void updateUserLoginFailCount(String redisKey) {
+        // 保证原子性
+        final String luaScript = "local current = redis.call('INCR', KEYS[1])\n" +
+                "if current == 1 then\n" +
+                "redis.call('EXPIRE', KEYS[1], ARGV[1])\n" +
+                "end\n" +
+                "return current";
+        Long failRes = redisUtils.incrementLoginFailCount(luaScript, redisKey, expireTime);
+
     }
 
     @Override
@@ -197,11 +213,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         String checkUserPassword = userUpdatePwdRequest.getCheckUserPassword();
 
         if (!userPassword.equals(checkUserPassword)){
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "两次输入的密码不一致");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "两次输入的密码不一致");
         }
 
         if (userPassword.length() < 8) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "用户密码过短");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "用户密码过短");
         }
 
         String encryptPassword = DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
@@ -214,25 +230,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return true;
     }
 
-    /**
-     * 更新登录成功或者失败时的数据库信息
-     *
-     * @param userInDb
-     * @param flag 输入是否正确
-     */
-    public void updateUserLoginFailCount(User userInDb,Boolean flag){
-        User user = new User();
-        user.setId(userInDb.getId());
-        if (flag){
-            // 登录成功
-            user.setLoginFailCount(0);
-        }else {
-            // 登录失败
-            user.setLoginFailCount(userInDb.getLoginFailCount() + 1);
-        }
-        user.setLastLoginTime(new Date());
-        this.baseMapper.updateById(user);
-    }
 
     /**
      * 获取当前登录用户
@@ -243,15 +240,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public User getLoginUser(HttpServletRequest request) {
         // 先判断是否已登录
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
-        User currentUser = (User) userObj;
-        if (currentUser == null || currentUser.getId() == null) {
+        Long userId =(Long) request.getSession().getAttribute(USER_LOGIN_STATE);
+        if (userId == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
 
         // 从数据库查询最新用户信息
-        long userId = currentUser.getId();
-        currentUser = this.getById(userId);
+        User currentUser = this.getById(userId);
         if (currentUser == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
@@ -268,12 +263,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public User getLoginUserPermitNull(HttpServletRequest request) {
         // 先判断是否已登录
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
-        User currentUser = (User) userObj;
-        if (currentUser == null || currentUser.getId() == null) {
+        Long userId =(Long) request.getSession().getAttribute(USER_LOGIN_STATE);
+        if (userId == null) {
             return null;
         }
-        long userId = currentUser.getId();
+
+        // 从数据库查询最新用户信息
         return this.getById(userId);
     }
 
@@ -285,10 +280,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
      */
     @Override
     public boolean isAdmin(HttpServletRequest request) {
-        // 仅管理员可查询
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
-        User user = (User) userObj;
-        return isAdmin(user);
+        // 先判断是否已登录
+        Long userId =(Long) request.getSession().getAttribute(USER_LOGIN_STATE);
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+
+        // 从数据库查询最新用户信息
+        User currentUser = this.getById(userId);
+        if (currentUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        return isAdmin(currentUser);
     }
 
     @Override
@@ -346,7 +349,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public QueryWrapper<User> getQueryWrapper(UserQueryRequest userQueryRequest) {
         if (userQueryRequest == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER, "请求参数为空");
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "请求参数为空");
         }
         Long id = userQueryRequest.getId();
         String userName = userQueryRequest.getUserName();
@@ -374,8 +377,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public boolean deductPoints(long userId, Integer requiredPoints) {
-        int i = userMapper.deductPoints(userId, requiredPoints);
-        return i > 0;
+        int affectedRows = userMapper.deductPoints(userId, requiredPoints);
+        return affectedRows > 0;
     }
 
     @Override

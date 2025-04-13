@@ -51,7 +51,7 @@ public class FeedbackController {
     @PostMapping("/add")
     public BaseResponse<Boolean> feedbackInterfaceInfo(@RequestBody FeedbackInterfaceInfoRequest feedbackInterfaceInfoRequest, HttpServletRequest request) {
         if (feedbackInterfaceInfoRequest == null){
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
 
         User loginUser = userService.getLoginUser(request);
@@ -72,7 +72,7 @@ public class FeedbackController {
     @AuthCheck(mustRole = "admin")
     public BaseResponse<FeedbackVO> getFeedbackById(@RequestParam Long id) {
         if (id == null || id < 0){
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
 
         Feedback byId = feedbackService.getById(id);
@@ -114,7 +114,7 @@ public class FeedbackController {
     @AuthCheck(mustRole = "admin")
     public BaseResponse<Boolean> updateFeedback(@RequestBody updateFeedbackRequest updateFeedbackRequest) {
         if (updateFeedbackRequest == null || updateFeedbackRequest.getId() < 0){
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
 
         Long id = updateFeedbackRequest.getId();
@@ -138,7 +138,7 @@ public class FeedbackController {
     @AuthCheck(mustRole = "admin")
     public BaseResponse<Boolean> deleteFeedback(@RequestParam Long id) {
         if (id == null || id < 0){
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
 
         return ResultUtils.success(feedbackService.removeById(id));

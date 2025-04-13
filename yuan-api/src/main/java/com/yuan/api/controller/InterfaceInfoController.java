@@ -6,8 +6,6 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cxmapi.api.v20231124.client.YuanApiClient;
 import com.cxmapi.api.v20231124.model.request.ApiRequest;
-import com.cxmapi.api.v20231124.utils.HttpUtils;
-import com.cxmapi.common.SignUtil;
 import com.cxmapi.common.exception.YuanapiSdkException;
 import com.cxmapi.common.model.ApiResponse;
 import com.cxmapi.common.model.Config;
@@ -16,11 +14,10 @@ import com.google.gson.JsonParser;
 import com.yuan.api.annotation.AuthCheck;
 import com.yuan.api.common.*;
 import com.yuan.api.constant.CommonConstant;
-import com.yuan.api.constant.RedisConstant;
 import com.yuan.api.constant.UserConstant;
 import com.yuan.api.event.ApiCallEvent;
-import com.yuan.api.utils.RedisUtils;
 import com.yupi.yuapicommon.constant.HttpConstant;
+import com.yupi.yuapicommon.constant.RedisConstant;
 import com.yupi.yuapicommon.exception.BusinessException;
 import com.yuan.api.model.dto.interfaceinfo.*;
 import com.yuan.api.utils.GenerateCodeUtils;
@@ -41,10 +38,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.beans.BeanUtils;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.util.StopWatch;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -103,7 +98,7 @@ public class InterfaceInfoController {
     @AuthCheck(mustRole = "admin")
     public BaseResponse<Long> addInterfaceInfo(@RequestBody InterfaceInfoAddRequest interfaceInfoAddRequest, HttpServletRequest request) {
         if (interfaceInfoAddRequest == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         InterfaceInfo interfaceInfo = new InterfaceInfo();
         BeanUtils.copyProperties(interfaceInfoAddRequest, interfaceInfo);
@@ -125,15 +120,12 @@ public class InterfaceInfoController {
     /**
      * 删除
      *
-     * @param deleteRequest
-     * @param r equest
-     * @return
      */
     @PostMapping("/delete")
     @AuthCheck(mustRole = "admin")
     public BaseResponse<Boolean> deleteInterfaceInfo(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
         if (deleteRequest == null || deleteRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
 
         long id = deleteRequest.getId();
@@ -143,9 +135,9 @@ public class InterfaceInfoController {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
         }
         // 仅管理员可删除
-        if (!userService.isAdmin(request)) {
-            throw new BusinessException(ErrorCode.NOT_AUTH);
-        }
+//        if (!userService.isAdmin(request)) {
+//            throw new BusinessException(ErrorCode.NOT_AUTH);
+//        }
         boolean b = interfaceInfoService.removeById(id);
         return ResultUtils.success(b);
     }
@@ -162,7 +154,7 @@ public class InterfaceInfoController {
     public BaseResponse<Boolean> updateInterfaceInfo(@RequestBody InterfaceInfoUpdateRequest interfaceInfoUpdateRequest,
                                                      HttpServletRequest request) {
         if (interfaceInfoUpdateRequest == null || interfaceInfoUpdateRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         InterfaceInfo interfaceInfo = new InterfaceInfo();
         BeanUtils.copyProperties(interfaceInfoUpdateRequest, interfaceInfo);
@@ -177,15 +169,10 @@ public class InterfaceInfoController {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
         }
 
-        // 仅管理员可修改
-        if (!userService.isAdmin(request)) {
-            throw new BusinessException(ErrorCode.NOT_AUTH);
-        }
-
         // 删除接口在网关中对应的缓存结果
         boolean deletionFailed = false; // 跟踪删除状态
         try {
-            innerRedisService.deleteKeys( oldInterfaceInfo.getUrl() + ":" +  oldInterfaceInfo.getMethod() + ":*");
+            innerRedisService.deleteKeys(RedisConstant.API_PREFIX + oldInterfaceInfo.getUrl() + ":" +  oldInterfaceInfo.getMethod() + ":*");
         } catch (Exception e) {
             deletionFailed = true; // 删除失败
             log.error("删除时出现了异常:{}", e.getMessage());
@@ -209,19 +196,19 @@ public class InterfaceInfoController {
     @GetMapping("/get")
     public BaseResponse<InterfaceInfoVO> getInterfaceInfoById(long id, HttpServletRequest request) {
         if (id <= 0) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         InterfaceInfo interfaceInfo = interfaceInfoService.getById(id);
 
         if (interfaceInfo == null){
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
 
         User loginUser = userService.getLoginUserPermitNull(request);
         // 普通用户和游客只能查看上线接口
         if (!interfaceInfo.getStatus().equals(InterfaceInfoStatusEnum.ONLINE.getValue())
                 && (loginUser == null || UserConstant.DEFAULT_ROLE.equals(loginUser.getUserRole()))){
-            throw new BusinessException(ErrorCode.ERROR_FORBIDDEN);
+            throw new BusinessException(ErrorCode.FORBIDDEN_ERROR);
         }
 
         InterfaceInfoVO interfaceInfoVO = interfaceInfoService.getInterfaceInfoVO(interfaceInfo);
@@ -261,7 +248,7 @@ public class InterfaceInfoController {
     @GetMapping("/list/page")
     public BaseResponse<Page<InterfaceInfoVO>> listInterfaceInfoByPage(InterfaceInfoQueryRequest interfaceInfoQueryRequest, HttpServletRequest request) {
         if (interfaceInfoQueryRequest == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         InterfaceInfo interfaceInfoQuery = new InterfaceInfo();
         BeanUtils.copyProperties(interfaceInfoQueryRequest, interfaceInfoQuery);
@@ -273,7 +260,7 @@ public class InterfaceInfoController {
         String sortOrder = interfaceInfoQueryRequest.getSortOrder();
         // 限制爬虫
         if (size > 100) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         QueryWrapper<InterfaceInfo> queryWrapper = new QueryWrapper<>();
         queryWrapper.like(StringUtils.isNotBlank(name), "name", name);
@@ -309,7 +296,7 @@ public class InterfaceInfoController {
     @AuthCheck(mustRole = "admin")
     public BaseResponse<Page<InterfaceInfoVO>> listInterfaceInfoAdmin(InterfaceInfoQueryRequest interfaceInfoQueryRequest, HttpServletRequest request) {
         if (interfaceInfoQueryRequest == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         InterfaceInfo interfaceInfoQuery = new InterfaceInfo();
         BeanUtils.copyProperties(interfaceInfoQueryRequest, interfaceInfoQuery);
@@ -320,7 +307,7 @@ public class InterfaceInfoController {
         String sortOrder = interfaceInfoQueryRequest.getSortOrder();
         // 限制爬虫
         if (size > 50) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         QueryWrapper<InterfaceInfo> queryWrapper = new QueryWrapper<>();
         queryWrapper.orderBy(StringUtils.isNotBlank("invokeCount"),
@@ -332,16 +319,13 @@ public class InterfaceInfoController {
     /**
      * 发布接口
      *
-     * @param idRequest
-     * @param request
-     * @return
      */
     @PostMapping("/online")
     @AuthCheck(mustRole = "admin")
     public BaseResponse<Boolean> onlineInterfaceInfo(@RequestBody InterfaceInfoInvokeRequest interfaceInfoInvokeRequest,
                                                      HttpServletRequest request) {
         if (interfaceInfoInvokeRequest == null || interfaceInfoInvokeRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         Long id = interfaceInfoInvokeRequest.getId();
         // 判断接口是否存在
@@ -366,7 +350,7 @@ public class InterfaceInfoController {
     public BaseResponse<Boolean> offlineInterfaceInfo(@RequestBody IdRequest idRequest,
                                                      HttpServletRequest request) {
         if (idRequest == null || idRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
         Long id = idRequest.getId();
         // 判断接口是否存在
@@ -388,9 +372,9 @@ public class InterfaceInfoController {
      *
      */
     @PostMapping("/invoke")
-    public BaseResponse<String> invokeInterfaceInfo(@RequestBody InterfaceInfoInvokeRequest interfaceInfoInvokeRequest, HttpServletRequest request) {
+    public BaseResponse<String> invokeInterfaceInfo(@RequestBody InterfaceInfoInvokeRequest interfaceInfoInvokeRequest, HttpServletRequest request) throws YuanapiSdkException {
         if (interfaceInfoInvokeRequest == null || interfaceInfoInvokeRequest.getId() <= 0) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
 
         StopWatch stopWatch = new StopWatch();
@@ -401,7 +385,7 @@ public class InterfaceInfoController {
         User loginUser = userService.getLoginUser(request);
 
         if (loginUser.getStatus() == 0){
-            throw new BusinessException(ErrorCode.ERROR_FORBIDDEN, "当前操作无效，请稍后再试或者联系管理员！");
+            throw new BusinessException(ErrorCode.FORBIDDEN_ERROR, "当前操作无效，请稍后再试或者联系管理员！");
         }
 
         String clientIp = NetUtils.getClientIpAddress(request);
@@ -453,9 +437,26 @@ public class InterfaceInfoController {
 
                 return ResultUtils.success(result.getBody(), totalTimeMillis, sizeInKB);
             } catch (YuanapiSdkException e) {
-                throw new BusinessException(e.errorCode, e.getMessage());
+                // 异常逻辑 - 记录日志后重新抛出
+                if (stopWatch.isRunning()) {
+                    stopWatch.stop();
+                }
+                long totalTimeMillis = stopWatch.getTotalTimeMillis();
+
+                // 创建错误响应对象用于日志记录
+                ApiResponse errorResponse = new ApiResponse(ErrorCode.SDK_INVOKE_ERROR.getCode(),
+                        e.getMessage(),
+                        new HashMap<>(),
+                        new HashMap<>());
+
+                // 记录错误日志
+                if (loginUser.getLoggingEnabled() == 1) {
+                    logApiCallAsync(loginUser, clientIp, interfaceInfo, errorResponse, userRequestParams, totalTimeMillis, 0);
+                }
+
+                return ResultUtils.success(e.getMessage(), totalTimeMillis, 0);
             } catch (IOException e){
-                throw new BusinessException(ErrorCode.ERROR_INTERNAL_SERVER, e.getMessage());
+                throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, e.getMessage());
             }
     }
 
@@ -473,7 +474,7 @@ public class InterfaceInfoController {
     @PostMapping("/generateCurl")
     public BaseResponse<String> generateCurlCommand(@RequestBody InterfaceInfoInvokeRequest interfaceInfoInvokeRequest, HttpServletRequest request) {
         if (interfaceInfoInvokeRequest == null) {
-            throw new BusinessException(ErrorCode.ERROR_INVALID_PARAMETER);
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER);
         }
 
         User loginUser = userService.getLoginUser(request);
@@ -485,24 +486,17 @@ public class InterfaceInfoController {
     private void logApiCallAsync(User loginUser, String clientIp, InterfaceInfo interfaceInfo,
                                 ApiResponse result, Map<String, Object> userRequestParams,
                                 long totalTimeMillis, double sizeInKB) {
-        Map<String, String> reqHeaders = result.getReqHeaders();
-        Map<String, String> resHeaders = result.getResHeaders();
+        Map<String, String> reqHeaders = result.getRequestHeaders();
+        Map<String, String> resHeaders = result.getResponseHeaders();
         String resultBody = result.getBody();
+        String traceId = resHeaders.getOrDefault(HttpConstant.TRACE_ID_HEADER, UUID.randomUUID().toString());
 
-        int finalCode = ErrorCode.SUCCESS.getCode();
-        try {
-            // 解析内层的 data 字段
-            JsonObject parsedData = JsonParser.parseString(resultBody).getAsJsonObject();
-            int innerCode = parsedData.get("code").getAsInt(); // 获取内层的 code
-            finalCode = innerCode;  // 内层 code 解析成功时，覆盖最终的 code
-        } catch (Exception e) {
-            // 解析失败时保持默认的SUCCESS code
-        }
+        int finalCode = determineFinalStatusCode(result, resultBody);
 
         // 发布事件 异步记录日志
         eventPublisher.publishEvent(new ApiCallEvent(
                 this,
-                resHeaders.getOrDefault(HttpConstant.TRACE_ID_HEADER, UUID.randomUUID().toString()),
+                traceId,
                 loginUser,
                 clientIp,
                 interfaceInfo,
@@ -515,6 +509,25 @@ public class InterfaceInfoController {
                 sizeInKB
         ));
 
+    }
+
+    /**
+     * 确定最终状态码
+     */
+    private int determineFinalStatusCode(ApiResponse result, String resultBody) {
+        // 单独处理SDK调用异常
+        if (result.getResponseCode() == ErrorCode.SDK_INVOKE_ERROR.getCode()) {
+            return result.getResponseCode();
+        }
+
+        // 尝试解析响应体中的code字段
+        try {
+            JsonObject json = JsonParser.parseString(resultBody).getAsJsonObject();
+            return json.get("code").getAsInt();
+        } catch (Exception e) {
+            // 默认返回成功码
+            return ErrorCode.SUCCESS.getCode();
+        }
     }
 
     private byte[] getResponseBytes(String result) throws IOException {

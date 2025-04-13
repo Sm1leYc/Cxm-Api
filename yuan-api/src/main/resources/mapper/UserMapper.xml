@@ -24,7 +24,7 @@
     </sql>
 
     <update id="deductPoints">
-        update user set points = points - #{requiredPoints} where  id = #{userId}
+        update user set points = points - #{requiredPoints} WHERE  id = #{userId} AND points >= #{requiredPoints}
     </update>
 
     <select id="selectPoints" resultType="java.lang.Integer">
