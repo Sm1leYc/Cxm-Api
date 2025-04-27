@@ -126,9 +126,11 @@ public class InterfaceInfoServiceImpl extends ServiceImpl<InterfaceInfoMapper, I
         // 获取今天的日期
         String today = LocalDate.now().toString();
 
+        String count = redisUtils.hmGet(RedisConstant.INTERFACE_CALLS_KEY, today);
+
         // 自增当天调用次数
         redisUtils.hmSet(RedisConstant.INTERFACE_CALLS_KEY, today,
-                String.valueOf(Integer.parseInt(redisUtils.hmGet(RedisConstant.INTERFACE_CALLS_KEY, today) == null ? "0" : redisUtils.hmGet(RedisConstant.INTERFACE_CALLS_KEY, today)) + 1));
+                String.valueOf(Integer.parseInt(count == null ? "0" : count + 1)));
 
     }
 
