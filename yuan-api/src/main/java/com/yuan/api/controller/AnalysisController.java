@@ -1,10 +1,9 @@
 package com.yuan.api.controller;
 
-import com.yuan.api.annotation.AuthCheck;
+import cn.dev33.satoken.annotation.SaCheckRole;
 import com.yuan.api.common.BaseResponse;
 import com.yuan.api.constant.RedisConstant;
 import com.yuan.api.utils.ResultUtils;
-import com.yuan.api.constant.UserConstant;
 import com.yuan.api.model.entity.ApiCallHistory;
 import com.yuan.api.model.vo.ApiCallStatisticsVO;
 import com.yuan.api.model.vo.InterfacePerformanceInfoVO;
@@ -19,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.yuan.api.constant.UserConstant.ADMIN_ROLE;
 
 /**
  * 分析控制器
@@ -46,7 +47,7 @@ public class AnalysisController {
      * @return
      */
     @GetMapping("/performance")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<List<InterfacePerformanceInfoVO>> listInterfacePerformanceInfo(){
         List<ApiCallHistory> list = apiCallHistoryService.list();
 

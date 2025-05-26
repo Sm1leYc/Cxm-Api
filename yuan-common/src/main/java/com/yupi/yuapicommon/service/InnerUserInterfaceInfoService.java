@@ -17,5 +17,4 @@ public interface InnerUserInterfaceInfoService {
      */
     boolean invokeCount(long interfaceInfoId, long userId, Integer requiredPoints, String traceId) throws InterruptedException;
 
-    boolean testApi(String name);
 }

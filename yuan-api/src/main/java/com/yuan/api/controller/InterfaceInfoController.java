@@ -1,7 +1,10 @@
 package com.yuan.api.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.hutool.json.JSONUtil;
-import com.alibaba.fastjson.JSON;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cxmapi.api.v20231124.client.YuanApiClient;
@@ -11,7 +14,6 @@ import com.cxmapi.common.model.ApiResponse;
 import com.cxmapi.common.model.Config;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.yuan.api.annotation.AuthCheck;
 import com.yuan.api.common.*;
 import com.yuan.api.constant.CommonConstant;
 import com.yuan.api.constant.UserConstant;
@@ -41,13 +43,15 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.util.StopWatch;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.yuan.api.constant.UserConstant.ADMIN_ROLE;
 
 /**
  * 接口
@@ -95,7 +99,7 @@ public class InterfaceInfoController {
      * @return
      */
     @PostMapping("/add")
-    @AuthCheck(mustRole = "admin")
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<Long> addInterfaceInfo(@RequestBody InterfaceInfoAddRequest interfaceInfoAddRequest, HttpServletRequest request) {
         if (interfaceInfoAddRequest == null) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER);
@@ -122,7 +126,7 @@ public class InterfaceInfoController {
      *
      */
     @PostMapping("/delete")
-    @AuthCheck(mustRole = "admin")
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<Boolean> deleteInterfaceInfo(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
         if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER);
@@ -150,7 +154,7 @@ public class InterfaceInfoController {
      * @return
      */
     @PostMapping("/update")
-    @AuthCheck(mustRole = "admin")
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<Boolean> updateInterfaceInfo(@RequestBody InterfaceInfoUpdateRequest interfaceInfoUpdateRequest,
                                                      HttpServletRequest request) {
         if (interfaceInfoUpdateRequest == null || interfaceInfoUpdateRequest.getId() <= 0) {
@@ -226,7 +230,7 @@ public class InterfaceInfoController {
      * @param interfaceInfoQueryRequest
      * @return
      */
-    @AuthCheck(mustRole = "admin")
+    @SaCheckRole(ADMIN_ROLE)
     @GetMapping("/list")
     public BaseResponse<List<InterfaceInfo>> listInterfaceInfo(InterfaceInfoQueryRequest interfaceInfoQueryRequest) {
         InterfaceInfo interfaceInfoQuery = new InterfaceInfo();
@@ -293,7 +297,7 @@ public class InterfaceInfoController {
      * @return
      */
     @GetMapping("/list/page/admin")
-    @AuthCheck(mustRole = "admin")
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<Page<InterfaceInfoVO>> listInterfaceInfoAdmin(InterfaceInfoQueryRequest interfaceInfoQueryRequest, HttpServletRequest request) {
         if (interfaceInfoQueryRequest == null) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER);
@@ -321,7 +325,7 @@ public class InterfaceInfoController {
      *
      */
     @PostMapping("/online")
-    @AuthCheck(mustRole = "admin")
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<Boolean> onlineInterfaceInfo(@RequestBody InterfaceInfoInvokeRequest interfaceInfoInvokeRequest,
                                                      HttpServletRequest request) {
         if (interfaceInfoInvokeRequest == null || interfaceInfoInvokeRequest.getId() <= 0) {
@@ -372,6 +376,8 @@ public class InterfaceInfoController {
      *
      */
     @PostMapping("/invoke")
+    @SentinelResource(blockHandler = "test1",
+                        fallback = "test2")
     public BaseResponse<String> invokeInterfaceInfo(@RequestBody InterfaceInfoInvokeRequest interfaceInfoInvokeRequest, HttpServletRequest request) throws YuanapiSdkException {
         if (interfaceInfoInvokeRequest == null || interfaceInfoInvokeRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER);
@@ -458,6 +464,14 @@ public class InterfaceInfoController {
             } catch (IOException e){
                 throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, e.getMessage());
             }
+    }
+
+    public BaseResponse<String> test1(@RequestBody InterfaceInfoInvokeRequest interfaceInfoInvokeRequest, HttpServletRequest request, BlockException ex){
+        return ResultUtils.success("熔断异常");
+    }
+
+    public BaseResponse<String> test2(@RequestBody InterfaceInfoInvokeRequest interfaceInfoInvokeRequest, HttpServletRequest request, Throwable ex){
+        return ResultUtils.success( "降级异常");
     }
 
     /**

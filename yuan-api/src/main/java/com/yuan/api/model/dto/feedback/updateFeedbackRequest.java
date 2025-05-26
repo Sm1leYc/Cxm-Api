@@ -6,7 +6,7 @@ import com.yuan.api.common.PageRequest;
 import com.yuan.api.model.enums.FeedbackStatusEnum;
 import lombok.Data;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @Data
 public class updateFeedbackRequest {

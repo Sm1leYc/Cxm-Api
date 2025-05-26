@@ -7,7 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 /**
  * 
@@ -35,7 +35,7 @@ public class BannedIps implements Serializable {
     /**
      * 
      */
-    private Date bannedAt;
+    private LocalDateTime bannedAt;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

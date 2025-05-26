@@ -5,7 +5,7 @@ import com.yuan.api.model.enums.FeedbackStatusEnum;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 /**
  * 反馈
@@ -32,5 +32,5 @@ public class Feedback implements Serializable {
     @EnumValue
     private FeedbackStatusEnum status;
 
-    private Date createTime;
+    private LocalDateTime createTime;
 }

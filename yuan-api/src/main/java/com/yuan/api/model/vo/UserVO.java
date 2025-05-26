@@ -1,7 +1,7 @@
 package com.yuan.api.model.vo;
 
 import java.io.Serializable;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 import lombok.Data;
 
@@ -63,9 +63,9 @@ public class UserVO implements Serializable {
     /**
      * 创建时间
      */
-    private Date createTime;
+    private LocalDateTime createTime;
 
-    private Date lastLoginTime;
+    private LocalDateTime lastLoginTime;
 
     private static final long serialVersionUID = 1L;
 }

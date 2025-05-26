@@ -8,12 +8,31 @@ spring:
       discovery:
         # 服务注册中心地址
         server-addr: 127.0.0.1:8848
+#        metadata:
+#          instance-id: ${spring.application.name}:${server.port}  # 唯一实例标识
       config:
         # 配置中心地址
         server-addr: 127.0.0.1:8848
         file-extension: yml
-        shared-configs:
-          - data-id: shared-test.yml
-            refresh: true
 
-
+#        shared-configs:
+#          - data-id: shared-test.yml
+#            refresh: true
+    sentinel:
+      # 取消控制台懒加载
+      eager: true
+      transport:
+        # 控制台地址
+        dashboard: localhost:8131  # Sentinel控制台地址
+        port: 8719  # 应用与Sentinel控制台交互的端口
+#      scg:
+#        fallback:
+#          mode: custom
+      datasource:
+        degrade-rule:
+          nacos:
+            server-addr: 127.0.0.1:8848
+            dataId: cxm-backend-sentinel-degrade
+            groupId: DEFAULT_GROUP
+            data-type: json
+            rule-type: degrade

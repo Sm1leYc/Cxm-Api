@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 
 @TableName(value ="api_call_history")
@@ -16,7 +16,7 @@ public class ApiCallHistory {
     @TableId(type = IdType.AUTO)
     private Long id;
     private String traceId; // 唯一标识每条记录
-    private Date timestamp; // API调用时间
+    private LocalDateTime timestamp; // API调用时间
     private String httpMethod; // HTTP方法 (GET, POST等)
     private String requestPath; // 请求路径
     private String requestHeaders; // 请求头信息

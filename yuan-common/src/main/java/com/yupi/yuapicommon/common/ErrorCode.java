@@ -63,6 +63,8 @@ public enum ErrorCode {
      */
     DEDUCE_POINT_ERROR(3003, "扣除积分失败"),
 
+    LOCK_ACQUISTION_ERROR(3003, "获取锁失败"),
+
     // ============== SDK错误码 ==============
     SDK_INVOKE_ERROR(4001, "SDK调用失败"),
 

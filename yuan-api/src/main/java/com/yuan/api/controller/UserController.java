@@ -1,9 +1,8 @@
 package com.yuan.api.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.yuan.api.annotation.AuthCheck;
 import com.yuan.api.common.*;
-import com.yuan.api.constant.UserConstant;
 import com.yuan.api.utils.ResultUtils;
 import com.yupi.yuapicommon.exception.BusinessException;
 import com.yuan.api.utils.ThrowUtils;
@@ -16,10 +15,10 @@ import com.yuan.api.model.vo.LoginUserVO;
 import com.yuan.api.model.vo.UserVO;
 import com.yuan.api.service.UserService;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.List;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -125,7 +124,7 @@ public class UserController {
      * @return
      */
     @PostMapping("/add")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<Long> addUser(@RequestBody UserAddRequest userAddRequest, HttpServletRequest request) {
         if (userAddRequest == null) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER);
@@ -145,7 +144,7 @@ public class UserController {
      * @return
      */
     @PostMapping("/delete")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<Boolean> deleteUser(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
         if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER);
@@ -162,7 +161,7 @@ public class UserController {
      * @return
      */
     @PostMapping("/update")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<Boolean> updateUser(@RequestBody UserUpdateRequest userUpdateRequest,
             HttpServletRequest request) {
         if (userUpdateRequest == null || userUpdateRequest.getId() == null) {
@@ -183,7 +182,7 @@ public class UserController {
      * @return
      */
     @GetMapping("/get")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<User> getUserById(long id, HttpServletRequest request) {
         if (id <= 0) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER);
@@ -216,7 +215,7 @@ public class UserController {
      * @return
      */
     @PostMapping("/list/page")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<Page<User>> listUserByPage(@RequestBody UserQueryRequest userQueryRequest,
             HttpServletRequest request) {
         long current = userQueryRequest.getCurrent();
@@ -311,7 +310,7 @@ public class UserController {
      * @return
      */
     @PostMapping("/ban")
-    @AuthCheck(mustRole = ADMIN_ROLE)
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<Boolean> banUser(Long userId, Integer status){
         if (userId == null){
             throw new BusinessException(ErrorCode.INVALID_PARAMETER);
@@ -344,14 +343,14 @@ public class UserController {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在");
         }
 
-        Date today = new Date();
+        LocalDateTime now = LocalDateTime.now();
         // 检查用户是否已经签到
-        if (user.getLastSignIn() != null && isSameDay(user.getLastSignIn(), today)) {
+        if (user.getLastSignIn() != null && isSameDay(user.getLastSignIn(), now)) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "每天只能签到一次，请勿重复签到！");
         }
 
         // 更新用户的最后签到日期和积分
-        user.setLastSignIn(today);
+        user.setLastSignIn(now);
         int points = user.getPoints() == null ? 0 : user.getPoints();
 
         if (points + ADD_POINTS > MAX_POINTS){
@@ -367,9 +366,11 @@ public class UserController {
     }
 
     // 检查两个日期是否为同一天
-    private boolean isSameDay(Date date1, Date date2) {
-        return date1.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate()
-                .isEqual(date2.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate());
+    private boolean isSameDay(LocalDateTime date1, LocalDateTime date2) {
+        return date1 != null && date2 != null 
+               && date1.getYear() == date2.getYear()
+               && date1.getMonthValue() == date2.getMonthValue()
+               && date1.getDayOfMonth() == date2.getDayOfMonth();
     }
 
 }

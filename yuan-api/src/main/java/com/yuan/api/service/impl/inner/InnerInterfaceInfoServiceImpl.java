@@ -9,7 +9,7 @@ import com.yupi.yuapicommon.service.InnerInterfaceInfoService;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.dubbo.config.annotation.DubboService;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 /**
  * 内部接口服务实现类

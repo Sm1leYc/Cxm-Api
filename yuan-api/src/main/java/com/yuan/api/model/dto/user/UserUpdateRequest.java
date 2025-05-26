@@ -1,7 +1,7 @@
 package com.yuan.api.model.dto.user;
 
 import java.io.Serializable;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 import lombok.Data;
 

@@ -5,14 +5,14 @@ import com.yupi.yuapicommon.model.vo.InterfaceInfoVO;
 import lombok.Data;
 import org.springframework.beans.BeanUtils;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 
 @Data
 public class ApiCallHistoryVO {
 
     private Long id;
-    private Date timestamp; // API调用时间
+    private LocalDateTime timestamp; // API调用时间
     private String interfaceName; // 被调用的API名称
     private String httpMethod; // HTTP方法 (GET, POST等)
     private Long duration; // 请求处理时间 (ms)

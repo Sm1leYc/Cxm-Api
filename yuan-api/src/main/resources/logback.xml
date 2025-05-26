@@ -32,7 +32,7 @@
         <append>true</append>
         <!-- 日志文件的格式 -->
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>===%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger Line:%-3L -
+            <pattern>===%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{X-Trace-Id}] %-5level %logger Line:%-3L -
                 %msg%n</pattern>
             <charset>utf-8</charset>
         </encoder>
@@ -46,6 +46,8 @@
 
     <!-- 异步日志 -->
     <appender name="ASYNC_FILEERROR" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>2048</queueSize>
+        <discardingThreshold>0</discardingThreshold> <!-- 队列满时不丢弃 -->
         <appender-ref ref="FILEERROR" />
     </appender>
 
@@ -98,7 +100,7 @@
         </rollingPolicy>
         <!-- 日志文件的格式 -->
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>===%d{yyyy-MM-dd HH:mm:ss.SSS} [Trace ID: %X{traceId}] %-5level %logger Line:%-3L -
+            <pattern>===%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{X-Trace-Id}] %-5level %logger Line:%-3L -
                 %msg%n</pattern>
             <charset>utf-8</charset>
         </encoder>
@@ -112,6 +114,8 @@
 
     <!-- 异步日志 -->
     <appender name="ASYNC_FILEINFO" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>2048</queueSize>
+        <discardingThreshold>0</discardingThreshold> <!-- 队列满时不丢弃 -->
         <appender-ref ref="FILEINFO" />
     </appender>
 
@@ -161,9 +165,9 @@
     <logger name="org.springframework" level="WARN" />
     <!-- 生产环境下，将此级别配置为适合的级别，以免日志文件太多或影响程序性能 -->
     <root level="INFO">
-        <appender-ref ref="FILEERROR" />
+        <appender-ref ref="ASYNC_FILEERROR" />
 <!--        <appender-ref ref="FILEWARN" />-->
-        <appender-ref ref="FILEINFO" />
+        <appender-ref ref="ASYNC_FILEINFO" />
 <!--        <appender-ref ref="FILEDEBUG" />-->
 <!--        <appender-ref ref="STDOUT" />-->
     </root>

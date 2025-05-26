@@ -1,8 +1,8 @@
 package com.yuan.api.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.yuan.api.annotation.AuthCheck;
 import com.yuan.api.common.BaseResponse;
 import com.yuan.api.utils.ResultUtils;
 import com.yupi.yuapicommon.exception.BusinessException;
@@ -19,8 +19,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletRequest;
-import java.util.Date;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.LocalDateTime;
+
+import static com.yuan.api.constant.UserConstant.ADMIN_ROLE;
 
 
 /**
@@ -61,7 +63,7 @@ public class FeedbackController {
         feedback.setFeedbackType(feedbackInterfaceInfoRequest.getFeedbackType());
         feedback.setFeedbackContent(feedbackInterfaceInfoRequest.getFeedbackContent());
         feedback.setContact(feedbackInterfaceInfoRequest.getContact());
-        feedback.setCreateTime(new Date());
+        feedback.setCreateTime(LocalDateTime.now());
 
         boolean save = feedbackService.save(feedback);
 
@@ -69,7 +71,7 @@ public class FeedbackController {
     }
 
     @PostMapping("/get")
-    @AuthCheck(mustRole = "admin")
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<FeedbackVO> getFeedbackById(@RequestParam Long id) {
         if (id == null || id < 0){
             throw new BusinessException(ErrorCode.INVALID_PARAMETER);
@@ -92,7 +94,7 @@ public class FeedbackController {
     }
 
     @PostMapping("/list/page")
-    @AuthCheck(mustRole = "admin")
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<Page<Feedback>> listFeedbackByPage(@RequestBody listFeedbackRequest listFeedbackRequest){
 
         // 获取分页参数
@@ -111,7 +113,7 @@ public class FeedbackController {
     }
 
     @PostMapping("/update")
-    @AuthCheck(mustRole = "admin")
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<Boolean> updateFeedback(@RequestBody updateFeedbackRequest updateFeedbackRequest) {
         if (updateFeedbackRequest == null || updateFeedbackRequest.getId() < 0){
             throw new BusinessException(ErrorCode.INVALID_PARAMETER);
@@ -135,7 +137,7 @@ public class FeedbackController {
     }
 
     @PostMapping("/delete")
-    @AuthCheck(mustRole = "admin")
+    @SaCheckRole(ADMIN_ROLE)
     public BaseResponse<Boolean> deleteFeedback(@RequestParam Long id) {
         if (id == null || id < 0){
             throw new BusinessException(ErrorCode.INVALID_PARAMETER);

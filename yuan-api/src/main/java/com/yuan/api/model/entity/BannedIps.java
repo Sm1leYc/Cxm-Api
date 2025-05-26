@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 /**
  * 
@@ -32,7 +32,7 @@ public class BannedIps implements Serializable {
     /**
      * 被封禁时间
      */
-    private Date bannedAt;
+    private LocalDateTime bannedAt;
 
     /**
      * 执行封禁人

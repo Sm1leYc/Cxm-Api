@@ -20,7 +20,8 @@ spring:
       eager: true
       transport:
         # 控制台地址
-        dashboard: 127.0.0.1:8080
+        dashboard: localhost:8131  # Sentinel控制台地址
+        port: 8719  # 应用与Sentinel控制台交互的端口
       scg:
         fallback:
           mode: custom

@@ -2,6 +2,7 @@ package com.yupi.yuapigateway.utils;
 
 
 import com.google.common.collect.HashMultimap;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -11,8 +12,9 @@ import org.springframework.data.redis.core.*;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Resource;
+
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -181,8 +183,9 @@ public class RedisUtils {
      */
     public  void removePattern(final String pattern) {
         Set<String> keys = stringRedisTemplate.keys(pattern);
-        if (keys != null && keys.size() > 0)
+        if (keys != null && keys.size() > 0) {
             stringRedisTemplate.delete(keys);
+        }
     }
 
     public void safeRemovePattern(final String pattern) {

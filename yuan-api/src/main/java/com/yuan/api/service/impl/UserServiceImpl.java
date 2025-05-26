@@ -1,11 +1,14 @@
 package com.yuan.api.service.impl;
 
+import cn.dev33.satoken.config.SaTokenConfig;
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yuan.api.constant.CommonConstant;
+import com.yuan.api.constant.UserConstant;
 import com.yuan.api.model.dto.user.UserLoginRequest;
 import com.yupi.yuapicommon.exception.BusinessException;
 import com.yuan.api.utils.ThrowUtils;
@@ -20,26 +23,22 @@ import com.yuan.api.service.UserService;
 import com.yuan.api.utils.DateUtils;
 import com.yuan.api.utils.SqlUtils;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
-//import javax.mail.internet.MimeMessage;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import com.yupi.yuapicommon.common.ErrorCode;
 import com.yupi.yuapicommon.model.entity.User;
 import com.yuan.api.utils.RedisUtils;
+import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
-import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
-
 import static com.yuan.api.constant.UserConstant.*;
 
 /**
@@ -181,13 +180,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         // 4. 登录成功删除key
         redisUtils.remove(redisKey);
-        // 用户信息存储到Spring Session中
-        request.getSession().setAttribute(USER_LOGIN_STATE, user.getId());
-        // 将 Session 与用户名关联
-        request.getSession().setAttribute(
-                FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME,
-                user.getUserAccount()
-        );
+
+        StpUtil.login(user.getId());
+        StpUtil.getRoleList().add(user.getUserRole());
 
         return this.getLoginUserVO(user);
     }
@@ -195,11 +190,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     // 登录失败更新redis次数
     private void updateUserLoginFailCount(String redisKey) {
         // 保证原子性
-        final String luaScript = "local current = redis.call('INCR', KEYS[1])\n" +
-                "if current == 1 then\n" +
-                "redis.call('EXPIRE', KEYS[1], ARGV[1])\n" +
-                "end\n" +
-                "return current";
+        final String luaScript = """
+                local current = redis.call('INCR', KEYS[1])
+                if current == 1 then
+                redis.call('EXPIRE', KEYS[1], ARGV[1])
+                end
+                return current""";
         Long failRes = redisUtils.incrementLoginFailCount(luaScript, redisKey, expireTime);
 
     }
@@ -240,10 +236,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public User getLoginUser(HttpServletRequest request) {
         // 先判断是否已登录
-        Long userId =(Long) request.getSession().getAttribute(USER_LOGIN_STATE);
-        if (userId == null) {
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
-        }
+        Long userId = StpUtil.getLoginIdAsLong();
 
         // 从数据库查询最新用户信息
         User currentUser = this.getById(userId);
@@ -263,13 +256,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public User getLoginUserPermitNull(HttpServletRequest request) {
         // 先判断是否已登录
-        Long userId =(Long) request.getSession().getAttribute(USER_LOGIN_STATE);
-        if (userId == null) {
+        String loginIdDefaultNull = (String)StpUtil.getLoginIdDefaultNull();
+        if (StringUtils.isBlank(loginIdDefaultNull)) {
             return null;
         }
 
         // 从数据库查询最新用户信息
-        return this.getById(userId);
+        return this.getById(Long.parseLong(loginIdDefaultNull));
     }
 
     /**
@@ -306,15 +299,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
      */
     @Override
     public boolean userLogout(HttpServletRequest request) {
-        // 1. 获取当前 Session 并立即失效
-        HttpSession session = request.getSession(false);
-        if (session != null){
-//            String userAccount = (String) session.getAttribute(FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME);
-
-            // 2. Session 失效（会自动清除 Redis 中的数据及索引）
-            session.invalidate();
-        }
-
+        StpUtil.logout();
         return true;
     }
 

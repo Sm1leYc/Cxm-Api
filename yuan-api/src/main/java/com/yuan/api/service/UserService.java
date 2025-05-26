@@ -10,8 +10,8 @@ import com.yupi.yuapicommon.model.entity.User;
 import com.yuan.api.model.vo.LoginUserVO;
 import com.yuan.api.model.vo.UserVO;
 import java.util.List;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * 用户服务

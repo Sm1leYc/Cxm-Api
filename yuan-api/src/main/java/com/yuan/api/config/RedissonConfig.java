@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
  * @author qimu
  */
 @Configuration
-@ConfigurationProperties(prefix = "spring.redis")
+@ConfigurationProperties(prefix = "spring.data.redis")
 @Data
 public class RedissonConfig {
 

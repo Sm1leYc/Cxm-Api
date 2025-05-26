@@ -10,7 +10,7 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -209,8 +209,9 @@ public class RedisUtils {
      */
     public  void removePattern(final String pattern) {
         Set<String> keys = stringRedisTemplate.keys(pattern);
-        if (keys != null && keys.size() > 0)
+        if (keys != null && keys.size() > 0) {
             stringRedisTemplate.delete(keys);
+        }
     }
 
     /**
@@ -300,6 +301,17 @@ public class RedisUtils {
     public  void hmSet(String key, String hashKey, String value) {
         HashOperations<String, String, String> hash = stringRedisTemplate.opsForHash();
         hash.put(key, hashKey, value);
+    }
+
+    /**
+     * 哈希 自增
+     *
+     * @param key     Redis键
+     * @param hashKey 哈希键
+     * @param delta   自增步长
+     */
+    public  void hmIncrement(String key, String hashKey, int delta) {
+         stringRedisTemplate.opsForHash().increment(key, hashKey, delta);
     }
 
     /**

@@ -22,7 +22,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -126,12 +126,9 @@ public class InterfaceInfoServiceImpl extends ServiceImpl<InterfaceInfoMapper, I
         // 获取今天的日期
         String today = LocalDate.now().toString();
 
-        String count = redisUtils.hmGet(RedisConstant.INTERFACE_CALLS_KEY, today);
-
         // 自增当天调用次数
-        redisUtils.hmSet(RedisConstant.INTERFACE_CALLS_KEY, today,
-                String.valueOf(Integer.parseInt(count == null ? "0" : count + 1)));
-
+        redisUtils.hmIncrement(RedisConstant.INTERFACE_CALLS_KEY, today,
+                1);
     }
 
     @Override

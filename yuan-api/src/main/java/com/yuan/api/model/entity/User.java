@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.io.Serializable;
-import java.util.Date;
+import java.time.LocalDateTime;
 import lombok.Data;
 
 /**
@@ -51,11 +51,6 @@ public class User implements Serializable {
     private String userRole;
 
     /**
-     * 用户登录错误次数
-     */
-    private Integer loginFailCount;
-
-    /**
      * 签名 accessKey
      */
     private String accessKey;
@@ -68,22 +63,22 @@ public class User implements Serializable {
     /**
      * 创建时间
      */
-    private Date createTime;
+    private LocalDateTime createTime;
 
     /**
      * 更新时间
      */
-    private Date updateTime;
+    private LocalDateTime updateTime;
 
     /**
      * 最后登录时间
      */
-    private Date lastLoginTime;
+    private LocalDateTime lastLoginTime;
 
     /**
      * 最后签到时间
      */
-    private Date lastSignIn;
+    private LocalDateTime lastSignIn;
 
     private Integer status;
 

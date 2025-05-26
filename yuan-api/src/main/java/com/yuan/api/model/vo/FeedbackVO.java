@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.yuan.api.model.enums.FeedbackStatusEnum;
 import lombok.Data;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @Data
 public class FeedbackVO {
@@ -28,5 +28,5 @@ public class FeedbackVO {
 
     private FeedbackStatusEnum status;
 
-    private Date createTime;
+    private LocalDateTime createTime;
 }

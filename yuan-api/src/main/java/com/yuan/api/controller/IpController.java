@@ -1,9 +1,9 @@
 package com.yuan.api.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.gson.Gson;
-import com.yuan.api.annotation.AuthCheck;
 import com.yuan.api.utils.ResultUtils;
 import com.yupi.yuapicommon.exception.BusinessException;
 import com.yuan.api.model.dto.ip.BannIpRequest;
@@ -18,9 +18,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
+
+import static com.yuan.api.constant.UserConstant.ADMIN_ROLE;
 
 @RestController
 @RequestMapping("/ip")
@@ -110,7 +112,7 @@ public class IpController {
      * @param interfaceInfoQueryRequest
      * @return
      */
-    @AuthCheck(mustRole = "admin")
+    @SaCheckRole(ADMIN_ROLE)
     @GetMapping("/list")
     public BaseResponse<List<BannedIps>> listInterfaceInfo(BannIpRequest bannIpRequest) {
         QueryWrapper<BannedIps> queryWrapper = new QueryWrapper<>(new BannedIps());

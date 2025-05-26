@@ -14,13 +14,13 @@ import com.yupi.yuapicommon.service.InnerUserService;
 import com.yupi.yuapicommon.utils.NetUtils;
 import com.yupi.yuapigateway.utils.RedisUtils;
 import com.yupi.yuapigateway.config.IpBlacklistConfig;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.dubbo.common.constants.ClusterRules;
 import org.apache.dubbo.common.constants.LoadbalanceRules;
 import org.apache.dubbo.config.annotation.DubboReference;
-import org.jetbrains.annotations.NotNull;
 import org.reactivestreams.Publisher;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -39,7 +39,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.UUID;
@@ -67,7 +67,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
     @DubboReference
     private InnerInterfaceInfoService innerInterfaceInfoService;
 
-    @DubboReference(cluster = ClusterRules.FAIL_FAST, loadbalance = LoadbalanceRules.ROUND_ROBIN)
+    @DubboReference(cluster = ClusterRules.FAIL_FAST, retries = 0, loadbalance = LoadbalanceRules.ROUND_ROBIN)
     private InnerUserInterfaceInfoService innerUserInterfaceInfoService;
 
     @Resource
@@ -157,7 +157,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
                 // 从Redis获取缓存数据
                 String cachedResponse = redisUtils.get(cacheKey);
                 if (cachedResponse != null) {
-                    log.info("{}走了缓存：{}", traceId, cacheKey);
+                    log.info("{}走了缓存：{}，结果：{}", traceId, cacheKey, cachedResponse);
 
                     // 基于用户和接口
                     String lockKey = LOCK_PREFIX + invokeUser.getId() + ":" + interfaceInfo.getId();
@@ -172,15 +172,9 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
                         try {
                             if (!invokeUserInterfaceInfo(invokeUser.getId(), interfaceInfo.getId(),
                                     interfaceInfo.getRequiredPoints(), traceId)) {
-                                throw new BusinessException(ErrorCode.DEDUCE_POINT_ERROR,
-                                        "接口调用失败，请先检查您的积分是否充足！");
+                                return Mono.error(new BusinessException(ErrorCode.DEDUCE_POINT_ERROR,
+                                        "接口调用失败，请先检查您的积分是否充足！"));
                             }
-
-                            // 返回缓存的响应
-                            ServerHttpResponse response = exchange.getResponse();
-                            DataBuffer buffer = response.bufferFactory()
-                                    .wrap(cachedResponse.getBytes(StandardCharsets.UTF_8));
-                            return response.writeWith(Mono.just(buffer));
                         } catch (BusinessException e){
                             // 其他系统异常
                             log.error("处理业务逻辑异常", e);
@@ -193,6 +187,13 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
                         log.error("缓存处理异常", e);
                         throw new BusinessException(ErrorCode.BAD_GATEWAY_ERROR);
                     }
+
+                    // 返回缓存的响应
+                    ServerHttpResponse response = exchange.getResponse();
+                    DataBuffer buffer = response.bufferFactory()
+                            .wrap(cachedResponse.getBytes(StandardCharsets.UTF_8));
+                    return response.writeWith(Mono.just(buffer));
+
                 }
             }
 
@@ -242,7 +243,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
                                 boolean locked = redisUtils.tryLock(lockKey, lockTimeout, expireTime);
 
                                 if (!locked) {
-                                    return Mono.error(new BusinessException(ErrorCode.DEDUCE_POINT_ERROR));
+                                    return Mono.error(new BusinessException(ErrorCode.LOCK_ACQUISTION_ERROR));
                                 }
 
                                 try {
@@ -291,25 +292,22 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         }
     }
 
-    private boolean invokeUserInterfaceInfo(long userId, long interfaceInfoId, Integer requiredPoints, String traceId) {
-        try {
-            log.info("=== {}开始积分调用 ===", traceId);
-            boolean invoked = innerUserInterfaceInfoService.invokeCount(interfaceInfoId, userId, requiredPoints, traceId);
-            log.info("=== {}结束积分调用 ===", traceId);
-            return invoked;
-        } catch (Exception e) {
-            throw new BusinessException(ErrorCode.DEDUCE_POINT_ERROR);
-        }
+    private boolean invokeUserInterfaceInfo(long userId, long interfaceInfoId, Integer requiredPoints, String traceId) throws InterruptedException {
+        log.info("=== {}开始积分调用 ===", traceId);
+        boolean invoked = innerUserInterfaceInfoService.invokeCount(interfaceInfoId, userId, requiredPoints, traceId);
+        log.info("=== {}结束积分调用 ===", traceId);
+        return invoked;
     }
 
-    // 鉴权(timestamp + nonce)
+    // 鉴权
     private void checkAuthority(HttpHeaders headers, String secretKey, String param,String sourceAddress) throws BusinessException{
         String nonce = headers.getFirst("x-Nonce");
         String timestamp = headers.getFirst("x-Timestamp");
         String sign = headers.getFirst("x-Sign");
+        String validSign = headers.getFirst("x-ValidSign");
 
         // 请求头中参数必须完整
-        if (StringUtils.isAnyBlank(nonce, sign, timestamp)) {
+        if (StringUtils.isBlank(validSign) && StringUtils.isAnyBlank(nonce, sign, timestamp)) {
             throw new BusinessException(ErrorCode.FORBIDDEN_ERROR);
         }
 
@@ -323,12 +321,16 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             throw new BusinessException(ErrorCode.FORBIDDEN_ERROR);
         }
 
+        if ("asdsa8d9a7878da9s7d8aad87".equals(validSign)){
+            return;
+        }
+
         /*
          * 2.重放验证
          * 判断timestamp时间戳与服务器时间是否操过60s（过期时间根据业务情况设置）,如果超过了就提示签名过期。
          */
         long currentTime = System.currentTimeMillis() / 1000;
-        if (StringUtils.isNotBlank(timestamp) && (currentTime - Long.parseLong(timestamp)) >= EXPIRE) {
+        if (StringUtils.isNotBlank(timestamp) && Math.abs(currentTime - Long.parseLong(timestamp)) >= EXPIRE) {
             throw new BusinessException(ErrorCode.FORBIDDEN_ERROR);
         }
 

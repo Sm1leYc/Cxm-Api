@@ -10,7 +10,7 @@ import com.yupi.yuapicommon.service.InnerUserService;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.dubbo.config.annotation.DubboService;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 /**
  * 内部用户服务实现类

@@ -1,6 +1,8 @@
 package com.yuan.api.interceptor;
 
 import com.yupi.yuapicommon.constant.HttpConstant;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.MDC;
@@ -8,8 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.UUID;
@@ -44,11 +44,11 @@ public class LoggingInterceptor implements HandlerInterceptor {
             log.info("Client IP: {}", request.getRemoteAddr());
 
             // 记录请求参数
-            Enumeration<String> paramNames = request.getParameterNames();
-            while (paramNames.hasMoreElements()) {
-                String paramName = paramNames.nextElement();
-                log.info("Parameter - {}: {}", paramName, request.getParameter(paramName));
-            }
+//            Enumeration<String> paramNames = request.getParameterNames();
+//            while (paramNames.hasMoreElements()) {
+//                String paramName = paramNames.nextElement();
+//                log.info("Parameter - {}: {}", paramName, request.getParameter(paramName));
+//            }
 
             return shouldProceed;
         } finally {

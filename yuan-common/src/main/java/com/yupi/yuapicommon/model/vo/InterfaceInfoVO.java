@@ -8,7 +8,7 @@ import lombok.Data;
 import org.springframework.beans.BeanUtils;
 
 import java.io.Serializable;
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -125,7 +125,7 @@ public class InterfaceInfoVO implements Serializable {
     /**
      * 创建时间
      */
-    private Date createTime;
+    private LocalDateTime createTime;
 
     // 是否启用缓存（1: 启用, 0: 不启用）
     private boolean cacheEnabled;

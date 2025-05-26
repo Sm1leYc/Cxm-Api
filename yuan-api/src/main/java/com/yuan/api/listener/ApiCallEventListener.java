@@ -3,14 +3,14 @@ package com.yuan.api.listener;
 import com.yuan.api.event.ApiCallEvent;
 import com.yuan.api.model.entity.ApiCallHistory;
 import com.yuan.api.service.ApiCallHistoryService;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Resource;
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -28,13 +28,14 @@ public class ApiCallEventListener {
             return;
         }
 
+        LocalDateTime now = LocalDateTime.now();
         ApiCallHistory apiCallHistory = new ApiCallHistory();
         apiCallHistory.setTraceId(event.getTraceId());
         apiCallHistory.setUserId(event.getUser().getId());
         apiCallHistory.setClientIp(event.getClientIp());
         apiCallHistory.setHttpMethod(event.getInterfaceInfo().getMethod());
         apiCallHistory.setRequestPath(event.getInterfaceInfo().getUrl());
-        apiCallHistory.setTimestamp(new Date());
+        apiCallHistory.setTimestamp(now);
         apiCallHistory.setInterfaceName(event.getInterfaceInfo().getName());
         apiCallHistory.setInterfaceId(event.getInterfaceInfo().getId());
         apiCallHistory.setDuration(event.getTotalTimeMillis());

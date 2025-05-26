@@ -5,7 +5,7 @@ import com.yupi.yuapigateway.utils.RedisUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboService;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 @Slf4j
 @DubboService

@@ -5,7 +5,7 @@ import com.yupi.yuapicommon.service.InnerUserInterfaceInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboService;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 /**
  * 内部用户接口信息服务实现类
@@ -25,9 +25,4 @@ public class InnerUserInterfaceInfoServiceImpl implements InnerUserInterfaceInfo
         return userInterfaceInfoService.invokeCount(traceId, interfaceInfoId, userId, requiredPoints);
     }
 
-    @Override
-    public boolean testApi(String name) {
-        log.info("~~~~~~~~~~~~输出api：{}", name);
-        return false;
-    }
 }

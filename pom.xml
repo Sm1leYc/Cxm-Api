@@ -13,25 +13,24 @@
     <description>Cxm-api开放平台</description>
 
     <properties>
-        <java.version>1.8</java.version>
-        <spring-boot-dependencies.version>2.6.13</spring-boot-dependencies.version>
-        <spring-cloud.version>2021.0.9</spring-cloud.version>
-        <spring-cloud-alibaba.version>2021.0.6.1</spring-cloud-alibaba.version>
-        <mybatis-plus-boot-starter.version>3.5.2</mybatis-plus-boot-starter.version>
-<!--        <mybatis-spring-boot-starter.version>2.2.2</mybatis-spring-boot-starter.version>-->
-        <gson.version>2.9.1</gson.version>
-        <springdoc-openapi-ui.version>1.6.15</springdoc-openapi-ui.version>
+        <java.version>21</java.version>
+        <spring-boot-dependencies.version>3.2.5</spring-boot-dependencies.version>
+        <spring-cloud.version>2023.0.1</spring-cloud.version>
+        <spring-cloud-alibaba.version>2023.0.1.0</spring-cloud-alibaba.version>
+        <mybatis-spring.version>3.0.3</mybatis-spring.version>
+        <mybatis-plus-boot-starter.version>3.5.6</mybatis-plus-boot-starter.version>
+        <gson.version>2.10.1</gson.version>
         <commons-lang3.version>3.12.0</commons-lang3.version>
-        <junit.version>4.13.2</junit.version>
-        <hutool-all.version>5.8.8</hutool-all.version>
-        <netty.version>4.1.100.Final</netty.version>
-        <redisson.version>3.22.0</redisson.version>
+        <junit.version>5.9.3</junit.version>
+        <hutool-all.version>5.8.20</hutool-all.version>
+        <netty.version>4.1.110.Final</netty.version>
+        <redisson.version>3.24.0</redisson.version>
         <cos_api.version>5.6.161</cos_api.version>
-        <dubbo.version>3.0.9</dubbo.version>
-        <logback-core.version>1.2.6</logback-core.version>
-        <logback-classic.version>1.2.6</logback-classic.version>
+        <dubbo.version>3.2.17</dubbo.version>
+        <lombok.version>1.18.30</lombok.version>
         <cxmapi-client-sdk.version>0.0.1</cxmapi-client-sdk.version>
         <yuan-common.version>0.0.1</yuan-common.version>
+        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
     </properties>
 
     <modules>
@@ -43,14 +42,23 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
                 <groupId>com.yuan</groupId>
                 <artifactId>yuan-common</artifactId>
                 <version>${yuan-common.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.dubbo</groupId>
-                <artifactId>dubbo</artifactId>
-                <version>${dubbo.version}</version>
+                <artifactId>dubbo-spring-boot-starter</artifactId>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.dubbo</groupId>
+                <artifactId>dubbo-nacos-spring-boot-starter</artifactId>
             </dependency>
             <!-- SpringBoot的依赖配置-->
             <dependency>
@@ -93,12 +101,6 @@
             </dependency>
 
             <dependency>
-                <groupId>org.springdoc</groupId>
-                <artifactId>springdoc-openapi-ui</artifactId>
-                <version>${springdoc-openapi-ui.version}</version>
-            </dependency>
-
-            <dependency>
                 <groupId>org.redisson</groupId>
                 <artifactId>redisson</artifactId>
                 <version>${redisson.version}</version>
@@ -107,6 +109,17 @@
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-boot-starter</artifactId>
                 <version>${mybatis-plus-boot-starter.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <artifactId>mybatis-spring</artifactId>
+                        <groupId>org.mybatis</groupId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.mybatis</groupId>
+                <artifactId>mybatis-spring</artifactId>
+                <version>${mybatis-spring.version}</version>
             </dependency>
             <!-- https://mvnrepository.com/artifact/com.google.code.gson/gson -->
             <dependency>
@@ -125,27 +138,10 @@
                 <artifactId>cxmapi-client-sdk</artifactId>
                 <version>${cxmapi-client-sdk.version}</version>
             </dependency>
-            <!-- https://mvnrepository.com/artifact/junit/junit -->
-            <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>${junit.version}</version>
-                <scope>test</scope>
-            </dependency>
             <dependency>
                 <groupId>cn.hutool</groupId>
                 <artifactId>hutool-all</artifactId>
                 <version>${hutool-all.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>ch.qos.logback</groupId>
-                <artifactId>logback-core</artifactId>
-                <version>${logback-core.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>ch.qos.logback</groupId>
-                <artifactId>logback-classic</artifactId>
-                <version>${logback-classic.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -163,14 +159,15 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.1.0</version>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
                 <configuration>
-                    <archive>
-                        <manifestEntries>
-                            <!-- Don't specify Main-Class if it's a library -->
-                        </manifestEntries>
-                    </archive>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <encoding>UTF-8</encoding>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
         </plugins>

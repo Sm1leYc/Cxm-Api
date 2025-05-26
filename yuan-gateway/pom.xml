@@ -15,71 +15,79 @@
     <name>yuapi-gateway</name>
     <description>yuapi-gateway</description>
     <properties>
-        <java.version>1.8</java.version>
-        <spring-cloud.version>2021.0.8</spring-cloud.version>
+        <java.version>21</java.version>
     </properties>
     <dependencies>
-
-        <!-- SpringCloud Alibaba Nacos -->
+        <!-- Nacos 服务发现 -->
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
 
-        <!-- SpringCloud Alibaba Nacos Config -->
+        <!-- Nacos 配置中心 -->
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
         </dependency>
 
-        <!-- Spring Cloud Gateway 启动器 -->
+        <!-- Spring Cloud Gateway -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-gateway</artifactId>
         </dependency>
 
-        <!-- SpringCloud Alibaba Sentinel -->
+        <!-- Sentinel -->
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
         </dependency>
 
-        <!-- Sentinel Datasource Nacos -->
+        <!-- Sentinel Nacos数据源 -->
         <dependency>
             <groupId>com.alibaba.csp</groupId>
             <artifactId>sentinel-datasource-nacos</artifactId>
         </dependency>
 
+        <!-- Sentinel Gateway适配器 -->
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-alibaba-sentinel-gateway</artifactId>
         </dependency>
 
-        <!-- Logback 核心库 -->
+        <!-- Spring 日志 -->
         <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-core</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-logging</artifactId>
         </dependency>
 
-        <!-- Logback经典实现 -->
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-        </dependency>
-
-        <!-- Spring Boot Redis 响应式支持 -->
+        <!-- Redis 响应式支持 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
         </dependency>
 
-        <!-- Apache Dubbo：分布式服务框架 -->
+        <!-- Dubbo -->
         <dependency>
             <groupId>org.apache.dubbo</groupId>
-            <artifactId>dubbo</artifactId>
+            <artifactId>dubbo-spring-boot-starter</artifactId>
+            <version>3.2.17</version>
         </dependency>
 
-        <!-- Spring Boot 开发工具，仅在运行时使用 -->
+        <!-- Dubbo Nacos -->
+        <dependency>
+            <groupId>org.apache.dubbo</groupId>
+            <artifactId>dubbo-nacos-spring-boot-starter</artifactId>
+            <version>3.2.17</version>
+        </dependency>
+
+        <!-- Sentinel Dubbo适配器 -->
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-apache-dubbo3-adapter</artifactId>
+            <version>1.8.8</version>
+        </dependency>
+
+        <!-- Spring DevTools -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
@@ -87,26 +95,26 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Lombok：简化 Java 代码的工具 -->
+        <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <version>1.18.30</version>
             <optional>true</optional>
         </dependency>
 
-        <!-- 通用工具库 -->
+        <!-- 通用模块 -->
         <dependency>
             <groupId>com.yuan</groupId>
             <artifactId>yuan-common</artifactId>
         </dependency>
 
-        <!-- 自定义 API 客户端 SDK -->
+        <!-- 客户端SDK -->
         <dependency>
             <groupId>com.cxmapi-clientsdk</groupId>
             <artifactId>cxmapi-client-sdk</artifactId>
         </dependency>
     </dependencies>
-
 
     <dependencyManagement>
         <dependencies>
@@ -125,9 +133,9 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>2.5.15</version>
+                <version>3.2.4</version>
                 <configuration>
-                    <fork>true</fork> <!-- 如果没有该配置，devtools不会生效 -->
+                    <fork>true</fork>
                 </configuration>
                 <executions>
                     <execution>
@@ -139,6 +147,4 @@
             </plugin>
         </plugins>
     </build>
-
-
 </project>

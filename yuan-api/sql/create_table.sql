@@ -20,7 +20,6 @@ CREATE TABLE `user`
     `secretKey` varchar(512) DEFAULT NULL COMMENT 'secretKey',
     `createTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updateTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `loginFailCount` int(11) DEFAULT '0' COMMENT '用户错误登录次数',
     `lastLoginTime` datetime DEFAULT NULL COMMENT '最后一次登录时间',
     `points` int(11) DEFAULT NULL COMMENT '积分',
     `loggingEnabled` tinyint(4) DEFAULT '0' COMMENT '是否记录调用历史（0-关闭 1开启）',

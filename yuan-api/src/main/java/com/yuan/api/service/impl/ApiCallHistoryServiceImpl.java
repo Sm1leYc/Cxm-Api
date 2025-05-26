@@ -9,7 +9,7 @@ import com.yuan.api.model.entity.ApiCallHistory;
 import com.yuan.api.service.ApiCallHistoryService;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 @Service
 public class ApiCallHistoryServiceImpl extends ServiceImpl<ApiCallHistoryMapper, ApiCallHistory> implements ApiCallHistoryService{

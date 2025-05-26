@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.io.Serializable;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -15,7 +15,7 @@ public class ApiCallHistoryQuery extends PageRequest implements Serializable {
     private String userId; // 自增主键，唯一标识每条记录
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
-    private Date timestamp; // API调用时间
+    private LocalDateTime timestamp; // API调用时间
     private String httpMethod; // HTTP方法 (GET, POST等)
     private String interfaceName; // 接口名称
     private String clientIp; // 客户端IP地址

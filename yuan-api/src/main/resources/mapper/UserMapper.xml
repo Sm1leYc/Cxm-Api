@@ -9,7 +9,6 @@
         <result property="userAvatar" column="userAvatar" jdbcType="VARCHAR"/>
         <result property="accessKey" column="accessKey" jdbcType="VARCHAR"/>
         <result property="secretKey" column="secretKey" jdbcType="VARCHAR"/>
-        <result property="loginFailCount" column="loginFailCount" jdbcType="INTEGER"/>
         <result property="points" column="points" jdbcType="INTEGER"/>
         <result property="userRole" column="userRole" jdbcType="VARCHAR"/>
         <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
@@ -20,7 +19,7 @@
     <sql id="Base_Column_List">
         id,accessKey,secretKey
         userName,userAvatar,
-        userRole,createTime,updateTime,loginFailCount,lastLoginTime,points
+        userRole,createTime,updateTime,lastLoginTime,points
     </sql>
 
     <update id="deductPoints">
